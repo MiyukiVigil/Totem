@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug only: lets the push spike reply to the PC script over plain HTTP on the LAN. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application android:networkSecurityConfig="@xml/network_security_config">
+        <!-- Debug only: open a pairing code with adb instead of the camera:
+             adb shell am start -a android.intent.action.VIEW -d "totem://pair?..."
+             (Not in release builds: a link must never be able to start pairing.) -->
+        <activity android:name=".MainActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="totem" android:host="pair" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

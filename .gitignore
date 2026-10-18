@@ -23,3 +23,10 @@ google-services.json
 *.iml
 .vscode/
 .DS_Store
+
+# Relay runtime state
+totem-relay-store.json
+
+# Desktop app tooling
+node_modules/
+desktop/src-tauri/gen/

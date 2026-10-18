@@ -1,0 +1,24 @@
+[package]
+name = "totem-client"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "PC side of Totem: keys, pairing and code requests (shared by the CLI and the desktop app)"
+
+[dependencies]
+totem-protocol = { path = "../protocol" }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+tokio-tungstenite = "0.24"
+futures-util = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+base64 = "0.22"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+rand = "0.8"
+hex = "0.4"
+dirs = "5"
+keyring = { version = "3", features = ["windows-native", "apple-native", "linux-native"] }
+
+[dev-dependencies]
+totem-relay = { path = "../relay" }
+axum = "0.7"

@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Totem's own windows: events and window basics only. App commands are defined in main.rs.",
+  "windows": ["popup", "pair"],
+  "permissions": ["core:default"]
+}

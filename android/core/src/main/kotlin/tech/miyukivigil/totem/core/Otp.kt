@@ -47,6 +47,26 @@ object Otp {
 }
 
 object Base32 {
+    private const val ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
+
+    /** RFC 4648 base32 without padding, as used in `otpauth://` secrets. */
+    fun encode(data: ByteArray): String {
+        val out = StringBuilder((data.size * 8 + 4) / 5)
+        var buffer = 0
+        var bits = 0
+        for (b in data) {
+            buffer = (buffer shl 8) or (b.toInt() and 0xff)
+            bits += 8
+            while (bits >= 5) {
+                bits -= 5
+                out.append(ALPHABET[(buffer shr bits) and 31])
+            }
+            buffer = buffer and ((1 shl bits) - 1)
+        }
+        if (bits > 0) out.append(ALPHABET[(buffer shl (5 - bits)) and 31])
+        return out.toString()
+    }
+
     /**
      * Decodes RFC 4648 base32 as found in `otpauth://` secrets: case-insensitive,
      * spaces/dashes ignored, `=` padding optional.

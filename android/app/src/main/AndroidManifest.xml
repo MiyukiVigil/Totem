@@ -1,8 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Only for scanning 2FA setup QR codes. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
+    <!-- Answering the PC: a short foreground service started by the wake push. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Approve / Deny requests and "code sent" notices. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- Secrets must never end up in cloud or device-to-device backups. -->
     <application
+        android:name=".TotemApp"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:label="@string/app_name"
@@ -10,11 +20,29 @@
         android:theme="@android:style/Theme.Material.NoActionBar">
         <activity
             android:name=".MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name=".push.RequestService"
+            android:exported="false"
+            android:foregroundServiceType="shortService" />
+
+        <receiver
+            android:name=".push.ApprovalReceiver"
+            android:exported="false" />
+
+        <service
+            android:name=".push.TotemMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>

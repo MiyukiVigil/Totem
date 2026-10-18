@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["protocol"]
+members = ["protocol", "relay", "client", "cli", "desktop/src-tauri"]
 
 [workspace.package]
 edition = "2021"

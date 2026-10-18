@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Totem</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="popup">
+    <header>
+      <input id="search" placeholder="Search accounts…" autocomplete="off" spellcheck="false" autofocus>
+    </header>
+    <ul id="list" class="list" role="listbox" aria-label="Accounts"></ul>
+    <div id="empty" class="empty hidden"></div>
+    <footer>
+      <span id="status" class="muted">↑↓ choose · Enter copy · Esc close</span>
+      <button id="pair-btn" class="hidden">Pair phone…</button>
+    </footer>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

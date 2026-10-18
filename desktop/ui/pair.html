@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pair Totem with your phone</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="pair">
+    <h1>Pair with your phone</h1>
+
+    <section id="setup">
+      <p class="muted" id="current"></p>
+      <label for="relay" class="muted">Relay address</label>
+      <div class="row">
+        <input id="relay" spellcheck="false" autofocus>
+        <button id="start" class="primary">Show code</button>
+      </div>
+      <p id="relay-note" class="muted"></p>
+    </section>
+
+    <section id="scan" class="hidden">
+      <ol class="steps">
+        <li>Open Totem on your phone</li>
+        <li>Settings → <b>Pair with a PC</b></li>
+        <li>Scan this code</li>
+      </ol>
+      <div id="qr" class="qr"></div>
+      <p class="muted">The code works for 3 minutes.</p>
+    </section>
+
+    <section id="confirm" class="hidden">
+      <p>Check that <b id="phone"></b> shows the same number, then tap <b>Codes match</b> on the phone:</p>
+      <div id="code" class="code"></div>
+      <p class="muted">If the numbers are different, tap “They don't” on the phone.</p>
+    </section>
+
+    <section id="done" class="hidden">
+      <p class="ok" id="done-text"></p>
+      <p>Press <b>Ctrl+Shift+A</b> anywhere to get a code. Totem keeps running in the tray.</p>
+      <button id="close" class="primary">Done</button>
+    </section>
+
+    <p id="error" class="error"></p>
+  </main>
+  <script src="pair.js"></script>
+</body>
+</html>

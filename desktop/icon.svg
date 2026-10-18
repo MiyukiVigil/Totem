@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Totem: three stacked blocks on a rounded tile; the middle one holds a keyhole. -->
+  <rect width="1024" height="1024" rx="224" fill="#b5652b"/>
+  <rect x="332" y="150" width="360" height="200" rx="48" fill="#fbeee2"/>
+  <circle cx="440" cy="250" r="34" fill="#b5652b"/>
+  <circle cx="584" cy="250" r="34" fill="#b5652b"/>
+  <rect x="272" y="392" width="480" height="240" rx="56" fill="#fbeee2"/>
+  <circle cx="512" cy="482" r="54" fill="#b5652b"/>
+  <path d="M482 520 h60 l18 82 h-96 z" fill="#b5652b"/>
+  <rect x="332" y="674" width="360" height="200" rx="48" fill="#fbeee2"/>
+  <rect x="412" y="752" width="200" height="44" rx="22" fill="#b5652b"/>
+</svg>

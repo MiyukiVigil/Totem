@@ -16,6 +16,10 @@ kotlin {
 
 dependencies {
     implementation("org.signal.forks:noise-java:0.1.1")
+    // Argon2id for backup passwords.
+    implementation("org.bouncycastle:bcprov-jdk18on:1.79")
+    // Android ships org.json; plain JVM tests get it below.
+    compileOnly("org.json:json:20240303")
 
     testImplementation(kotlin("test"))
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")

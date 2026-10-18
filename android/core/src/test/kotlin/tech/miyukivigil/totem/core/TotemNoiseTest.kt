@@ -62,6 +62,16 @@ class TotemNoiseTest {
     }
 
     @Test
+    fun responderKnowsInitiatorKeyBeforeReplying() {
+        val pc = TotemNoise.generateKeyPair()
+        val phone = TotemNoise.generateKeyPair()
+        val responder = TotemNoise.sessionResponder(phone.private)
+        responder.readMessage(TotemNoise.sessionInitiator(pc.private, phone.public).writeMessage())
+        assertFalse(responder.isFinished)
+        assertContentEquals(pc.public, responder.remoteStatic())
+    }
+
+    @Test
     fun pairingMessageIsNotAcceptedAsSession() {
         val phone = TotemNoise.generateKeyPair()
         val pc = TotemNoise.generateKeyPair()

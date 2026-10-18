@@ -1,110 +1,147 @@
 package tech.miyukivigil.totem
 
-import android.content.pm.ApplicationInfo
+import android.content.Intent
+import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
+import android.util.Log
 import android.view.WindowManager
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.material3.Card
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
+import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
+import androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL
+import androidx.biometric.BiometricPrompt
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import tech.miyukivigil.totem.core.Base32
-import tech.miyukivigil.totem.core.Otp
-import tech.miyukivigil.totem.core.OtpAlgorithm
-import kotlinx.coroutines.delay
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.lifecycleScope
+import com.google.firebase.messaging.FirebaseMessaging
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import tech.miyukivigil.totem.core.PairingQr
+import tech.miyukivigil.totem.push.TotemMessagingService
+import tech.miyukivigil.totem.ui.LockState
+import tech.miyukivigil.totem.ui.TotemRoot
 
 /**
- * M0 smoke-test screen: shows live codes computed by the shared core engine, so we can check the
- * engine and the build on a real device. The real vault and account list come in M1.
+ * Hosts the Compose UI and owns the app lock: Totem asks for fingerprint / face / screen-lock PIN
+ * on launch and whenever it comes back after [RELOCK_AFTER_MS] in the background.
  */
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
+    private val app get() = application as TotemApp
+    private val lock: LockModel by viewModels()
+    private var lockState: LockState
+        get() = lock.state
+        set(value) { lock.state = value }
+    private var promptShowing = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Codes must not show up in screenshots, screen recordings or the recent-apps preview.
-        // Dev builds skip this so the app can be checked with adb screenshots (test secrets only).
-        if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE == 0) {
+        if (!app.debugFlag("debug_allow_screenshots")) {
             window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
         }
+        if (app.isDebugBuild) {
+            // M0 push spike: scripts/push-spike.mjs reads this token from logcat.
+            FirebaseMessaging.getInstance().token.addOnSuccessListener { Log.i(TotemMessagingService.TAG, "FCM token: $it") }
+        }
+        lifecycleScope.launch(Dispatchers.IO) { app.vault.load() }
+        if (savedInstanceState == null) takePairingLink(intent)
+
         enableEdgeToEdge()
         setContent {
-            MaterialTheme(colorScheme = if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme()) {
-                Surface(Modifier.fillMaxSize()) { DemoScreen() }
+            TotemRoot(app, lockState, ::showPrompt, pairingUri = lock.pairingUri, onPairingUriUsed = { lock.pairingUri = null })
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        takePairingLink(intent)
+    }
+
+    /** Debug builds only: `totem://pair?...` links (see the debug manifest) open the pairing screen. */
+    private fun takePairingLink(intent: Intent?) {
+        val uri = intent?.dataString ?: return
+        if (app.isDebugBuild && PairingQr.isPairingUri(uri)) lock.pairingUri = uri
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (lock.backgroundedAt != 0L && SystemClock.elapsedRealtime() - lock.backgroundedAt > RELOCK_AFTER_MS) {
+            lockState = LockState.LOCKED
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (lockState == LockState.LOCKED) showPrompt()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // Changing configuration (e.g. rotation) isn't really leaving the app.
+        lock.backgroundedAt = if (isChangingConfigurations) 0L else SystemClock.elapsedRealtime()
+    }
+
+    private fun authenticators(): Int =
+        // BIOMETRIC_STRONG | DEVICE_CREDENTIAL is not supported before Android 11.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) BIOMETRIC_STRONG or DEVICE_CREDENTIAL else BIOMETRIC_WEAK or DEVICE_CREDENTIAL
+
+    private fun showPrompt() {
+        if (promptShowing || lockState != LockState.LOCKED) return
+        if (app.debugFlag("debug_skip_lock")) {
+            lockState = LockState.UNLOCKED
+            return
+        }
+        when (BiometricManager.from(this).canAuthenticate(authenticators())) {
+            BiometricManager.BIOMETRIC_SUCCESS -> Unit
+            else -> {
+                // No screen lock set up at all: nothing to check against. The UI shows a warning.
+                lockState = LockState.NO_DEVICE_LOCK
+                return
             }
         }
+        promptShowing = true
+        val prompt = BiometricPrompt(
+            this,
+            ContextCompat.getMainExecutor(this),
+            object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    promptShowing = false
+                    lockState = LockState.UNLOCKED
+                }
+
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    // Cancelled or too many attempts: stay locked; the lock screen has a retry button.
+                    promptShowing = false
+                }
+            },
+        )
+        prompt.authenticate(
+            BiometricPrompt.PromptInfo.Builder()
+                .setTitle("Unlock Totem")
+                .setAllowedAuthenticators(authenticators())
+                .build(),
+        )
+    }
+
+    private companion object {
+        const val RELOCK_AFTER_MS = 30_000L
     }
 }
 
-/** Public test secrets from the RFCs. Never real accounts. */
-private data class DemoAccount(val issuer: String, val label: String, val secretBase32: String, val algorithm: OtpAlgorithm)
-
-private val demoAccounts = listOf(
-    DemoAccount("RFC 6238", "SHA1 test secret", "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", OtpAlgorithm.SHA1),
-    DemoAccount(
-        "RFC 6238", "SHA256 test secret",
-        "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZA", OtpAlgorithm.SHA256,
-    ),
-)
-
-@Composable
-private fun DemoScreen() {
-    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            now = System.currentTimeMillis()
-            delay(250)
-        }
-    }
-    val seconds = now / 1000
-    val remaining = Otp.secondsRemaining(seconds, 30)
-
-    Column(
-        Modifier.fillMaxSize().safeDrawingPadding().padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Text("Totem", style = MaterialTheme.typography.headlineMedium)
-        Text(
-            "Dev build · M0 engine check. These are public RFC test secrets, not real accounts.",
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        for (account in demoAccounts) {
-            val code = Otp.totp(Base32.decode(account.secretBase32), seconds, 30, 6, account.algorithm)
-            Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("${account.issuer} · ${account.label}", style = MaterialTheme.typography.titleSmall)
-                    Text(
-                        code.chunked(3).joinToString(" "),
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 36.sp,
-                    )
-                    LinearProgressIndicator(
-                        progress = { ((now / 1000.0) % 30).let { 1f - (it / 30.0).toFloat() } },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Text("${remaining}s left", style = MaterialTheme.typography.bodySmall)
-                }
-            }
-        }
-    }
+/**
+ * Survives rotation but not process death, so a process killed in the background always comes
+ * back locked.
+ */
+class LockModel : ViewModel() {
+    var state by mutableStateOf(LockState.LOCKED)
+    var backgroundedAt = 0L
+    var pairingUri by mutableStateOf<String?>(null)
 }

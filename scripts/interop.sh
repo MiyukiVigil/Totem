@@ -4,6 +4,6 @@
 set -eu
 cd "$(dirname "$0")/.."
 
-cargo test -p totem-protocol
+cargo test --workspace
 cargo build -p totem-protocol --example noise_peer
 (cd android && ./gradlew :core:test --console=plain)

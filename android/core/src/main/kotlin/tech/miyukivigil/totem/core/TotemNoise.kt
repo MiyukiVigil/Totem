@@ -102,8 +102,12 @@ class Handshake internal constructor(
         return state.handshakeHash
     }
 
+    /**
+     * The peer's static key. For an IK responder this is known after reading the first message,
+     * before replying, so unknown peers can be ignored without answering.
+     */
     fun remoteStatic(): ByteArray {
-        check(isFinished)
+        check(state.hasRemotePublicKey()) { "peer's static key not known yet" }
         return ByteArray(TotemNoise.KEY_LEN).also { state.remotePublicKey.getPublicKey(it, 0) }
     }
 

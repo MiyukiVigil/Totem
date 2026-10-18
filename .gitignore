@@ -1,0 +1,25 @@
+# Rust
+/target/
+**/target/
+
+# Gradle / Android
+.gradle/
+**/build/
+local.properties
+*.apk
+*.aab
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Firebase config is per-developer (create your own project)
+google-services.json
+# Firebase service-account keys (contain a private key). Keep them outside the repo anyway.
+*firebase-adminsdk*.json
+*service-account*.json
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.DS_Store

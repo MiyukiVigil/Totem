@@ -1,0 +1,279 @@
+{
+  "_source": "RFC 4226 Appendix D (HOTP), RFC 6238 Appendix B (TOTP), RFC 4648 section 10 (base32, padding stripped). Used by BOTH the Kotlin and Rust test suites.",
+  "hotp": [
+    {
+      "algorithm": "SHA1",
+      "secret_hex": "3132333435363738393031323334353637383930",
+      "secret_base32": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "digits": 6,
+      "counter": 0,
+      "code": "755224"
+    },
+    {
+      "algorithm": "SHA1",
+      "secret_hex": "3132333435363738393031323334353637383930",
+      "secret_base32": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "digits": 6,
+      "counter": 1,
+      "code": "287082"
+    },
+    {
+      "algorithm": "SHA1",
+      "secret_hex": "3132333435363738393031323334353637383930",
+      "secret_base32": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "digits": 6,
+      "counter": 2,
+      "code": "359152"
+    },
+    {
+      "algorithm": "SHA1",
+      "secret_hex": "3132333435363738393031323334353637383930",
+      "secret_base32": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "digits": 6,
+      "counter": 3,
+      "code": "969429"
+    },
+    {
+      "algorithm": "SHA1",
+      "secret_hex": "3132333435363738393031323334353637383930",
+      "secret_base32": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "digits": 6,
+      "counter": 4,
+      "code": "338314"
+    },
+    {
+      "algorithm": "SHA1",
+      "secret_hex": "3132333435363738393031323334353637383930",
+      "secret_base32": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "digits": 6,
+      "counter": 5,
+      "code": "254676"
+    },
+    {
+      "algorithm": "SHA1",
+      "secret_hex": "3132333435363738393031323334353637383930",
+      "secret_base32": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "digits": 6,
+      "counter": 6,
+      "code": "287922"
+    },
+    {
+      "algorithm": "SHA1",
+      "secret_hex": "3132333435363738393031323334353637383930",
+      "secret_base32": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "digits": 6,
+      "counter": 7,
+      "code": "162583"
+    },
+    {
+      "algorithm": "SHA1",
+      "secret_hex": "3132333435363738393031323334353637383930",
+      "secret_base32": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "digits": 6,
+      "counter": 8,
+      "code": "399871"
+    },
+    {
+      "algorithm": "SHA1",
+      "secret_hex": "3132333435363738393031323334353637383930",
+      "secret_base32": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "digits": 6,
+      "counter": 9,
+      "code": "520489"
+    }
+  ],
+  "totp": [
+    {
+      "algorithm": "SHA1",
+      "secret_hex": "3132333435363738393031323334353637383930",
+      "secret_base32": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "digits": 8,
+      "period": 30,
+      "time": 59,
+      "code": "94287082"
+    },
+    {
+      "algorithm": "SHA256",
+      "secret_hex": "3132333435363738393031323334353637383930313233343536373839303132",
+      "secret_base32": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZA",
+      "digits": 8,
+      "period": 30,
+      "time": 59,
+      "code": "46119246"
+    },
+    {
+      "algorithm": "SHA512",
+      "secret_hex": "31323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334",
+      "secret_base32": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNA",
+      "digits": 8,
+      "period": 30,
+      "time": 59,
+      "code": "90693936"
+    },
+    {
+      "algorithm": "SHA1",
+      "secret_hex": "3132333435363738393031323334353637383930",
+      "secret_base32": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "digits": 8,
+      "period": 30,
+      "time": 1111111109,
+      "code": "07081804"
+    },
+    {
+      "algorithm": "SHA256",
+      "secret_hex": "3132333435363738393031323334353637383930313233343536373839303132",
+      "secret_base32": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZA",
+      "digits": 8,
+      "period": 30,
+      "time": 1111111109,
+      "code": "68084774"
+    },
+    {
+      "algorithm": "SHA512",
+      "secret_hex": "31323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334",
+      "secret_base32": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNA",
+      "digits": 8,
+      "period": 30,
+      "time": 1111111109,
+      "code": "25091201"
+    },
+    {
+      "algorithm": "SHA1",
+      "secret_hex": "3132333435363738393031323334353637383930",
+      "secret_base32": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "digits": 8,
+      "period": 30,
+      "time": 1111111111,
+      "code": "14050471"
+    },
+    {
+      "algorithm": "SHA256",
+      "secret_hex": "3132333435363738393031323334353637383930313233343536373839303132",
+      "secret_base32": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZA",
+      "digits": 8,
+      "period": 30,
+      "time": 1111111111,
+      "code": "67062674"
+    },
+    {
+      "algorithm": "SHA512",
+      "secret_hex": "31323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334",
+      "secret_base32": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNA",
+      "digits": 8,
+      "period": 30,
+      "time": 1111111111,
+      "code": "99943326"
+    },
+    {
+      "algorithm": "SHA1",
+      "secret_hex": "3132333435363738393031323334353637383930",
+      "secret_base32": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "digits": 8,
+      "period": 30,
+      "time": 1234567890,
+      "code": "89005924"
+    },
+    {
+      "algorithm": "SHA256",
+      "secret_hex": "3132333435363738393031323334353637383930313233343536373839303132",
+      "secret_base32": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZA",
+      "digits": 8,
+      "period": 30,
+      "time": 1234567890,
+      "code": "91819424"
+    },
+    {
+      "algorithm": "SHA512",
+      "secret_hex": "31323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334",
+      "secret_base32": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNA",
+      "digits": 8,
+      "period": 30,
+      "time": 1234567890,
+      "code": "93441116"
+    },
+    {
+      "algorithm": "SHA1",
+      "secret_hex": "3132333435363738393031323334353637383930",
+      "secret_base32": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "digits": 8,
+      "period": 30,
+      "time": 2000000000,
+      "code": "69279037"
+    },
+    {
+      "algorithm": "SHA256",
+      "secret_hex": "3132333435363738393031323334353637383930313233343536373839303132",
+      "secret_base32": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZA",
+      "digits": 8,
+      "period": 30,
+      "time": 2000000000,
+      "code": "90698825"
+    },
+    {
+      "algorithm": "SHA512",
+      "secret_hex": "31323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334",
+      "secret_base32": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNA",
+      "digits": 8,
+      "period": 30,
+      "time": 2000000000,
+      "code": "38618901"
+    },
+    {
+      "algorithm": "SHA1",
+      "secret_hex": "3132333435363738393031323334353637383930",
+      "secret_base32": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      "digits": 8,
+      "period": 30,
+      "time": 20000000000,
+      "code": "65353130"
+    },
+    {
+      "algorithm": "SHA256",
+      "secret_hex": "3132333435363738393031323334353637383930313233343536373839303132",
+      "secret_base32": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZA",
+      "digits": 8,
+      "period": 30,
+      "time": 20000000000,
+      "code": "77737706"
+    },
+    {
+      "algorithm": "SHA512",
+      "secret_hex": "31323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334",
+      "secret_base32": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNA",
+      "digits": 8,
+      "period": 30,
+      "time": 20000000000,
+      "code": "47863826"
+    }
+  ],
+  "base32": [
+    {
+      "plain_hex": "",
+      "base32": ""
+    },
+    {
+      "plain_hex": "66",
+      "base32": "MY"
+    },
+    {
+      "plain_hex": "666f",
+      "base32": "MZXQ"
+    },
+    {
+      "plain_hex": "666f6f",
+      "base32": "MZXW6"
+    },
+    {
+      "plain_hex": "666f6f62",
+      "base32": "MZXW6YQ"
+    },
+    {
+      "plain_hex": "666f6f6261",
+      "base32": "MZXW6YTB"
+    },
+    {
+      "plain_hex": "666f6f626172",
+      "base32": "MZXW6YTBOI"
+    }
+  ]
+}

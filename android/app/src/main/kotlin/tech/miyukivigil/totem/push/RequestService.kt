@@ -45,10 +45,17 @@ class RequestService : Service() {
     private fun work() {
         val app = application as TotemApp
         app.vault.load()
+        val forgotten = RelaySync.forgetExpired(app)
         val device = app.devices.get()
         val token = Pairing.fcmToken()
-        for (relay in device.pcs.map { it.relay }.distinct()) {
-            val conn = RelayConnection.open(relay, device.identity)
+        // Also visit relays that only a forgotten PC used, to clear its permission there.
+        for (relay in (device.pcs + forgotten).map { it.relay }.distinct()) {
+            val conn = try {
+                RelaySync.connect(app, relay)
+            } catch (e: Exception) {
+                Log.w(TAG, "can't reach relay", e)
+                continue
+            }
             try {
                 RelaySync.sync(conn, app, token)
                 RequestHandler(app, conn).run()

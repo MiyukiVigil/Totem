@@ -53,6 +53,9 @@ struct Settings {
     /// Desktop app: run the relay inside the app (home setup). Default on.
     #[serde(default)]
     host_relay: Option<bool>,
+    /// Desktop app: ask for Windows Hello before copying a code. Default on.
+    #[serde(default)]
+    require_hello: Option<bool>,
 }
 
 enum KeyStore {
@@ -214,6 +217,14 @@ impl Config {
 
     pub fn set_host_relay(&mut self, on: bool) {
         self.settings.host_relay = Some(on);
+    }
+
+    pub fn require_hello(&self) -> bool {
+        self.settings.require_hello.unwrap_or(true)
+    }
+
+    pub fn set_require_hello(&mut self, on: bool) {
+        self.settings.require_hello = Some(on);
     }
 
     pub fn account_cache(&self) -> &[AccountInfo] {

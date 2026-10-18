@@ -10,7 +10,12 @@ use totem_protocol::relay::{auth_message, device_id, ClientMsg, ServerMsg};
 
 type Ws = tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
 
+/// Set `TOTEM_TEST_RELAY_URL` (e.g. `ws://127.0.0.1:8787/v1/ws` from `npm run dev` in
+/// relay-worker/) to run the same tests against another relay implementation.
 async fn start_relay() -> String {
+    if let Ok(url) = std::env::var("TOTEM_TEST_RELAY_URL") {
+        return url;
+    }
     let relay = totem_relay::Relay::new(None, None);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();

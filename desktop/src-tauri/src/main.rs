@@ -3,13 +3,16 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod hello;
+
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
-use tauri::menu::{Menu, MenuItem};
+use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, RunEvent, State, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 use totem_client::config::Config;
 use totem_client::{describe, pair, AccountInfo, PairEvent, Session};
@@ -26,6 +29,8 @@ struct AppState {
     /// approves on the phone).
     busy: AtomicBool,
     relay_error: std::sync::Mutex<Option<String>>,
+    relay_running: AtomicBool,
+    hello: hello::Gate,
 }
 
 #[derive(Serialize, Clone)]
@@ -79,7 +84,15 @@ async fn with_session<T>(
     let mut slot = state.session.lock().await;
     let fresh = matches!(slot.as_ref(), Some((_, used)) if used.elapsed() < SESSION_REUSE);
     if !fresh {
-        *slot = Some((Session::open(&Config::load_or_create()?).await?, Instant::now()));
+        let config = Config::load_or_create()?;
+        // Our own relay: talk to it over loopback, which survives the PC getting a new address.
+        let session = match config.relay_url() {
+            Some(url) if config.host_relay() && url.to_ascii_lowercase().starts_with("ws://") => {
+                Session::open_via(&config, &format!("ws://127.0.0.1:{RELAY_PORT}/v1/ws")).await?
+            }
+            _ => Session::open(&config).await?,
+        };
+        *slot = Some((session, Instant::now()));
     }
     let (session, used) = slot.as_mut().unwrap();
     let result = f(session).await;
@@ -106,9 +119,10 @@ struct Copied {
 }
 
 #[tauri::command]
-async fn copy_code(state: State<'_, AppState>, account_id: String) -> Result<Copied, String> {
+async fn copy_code(app: AppHandle, state: State<'_, AppState>, account_id: String) -> Result<Copied, String> {
     state.busy.store(true, Ordering::SeqCst);
     let result = async {
+        check_hello(&app, &state).await?;
         let id = account_id.clone();
         let code = with_session(&state, move |s| Box::pin(async move { s.code(&id).await })).await?;
         copy_to_clipboard(&code.code)?;
@@ -123,6 +137,33 @@ async fn copy_code(state: State<'_, AppState>, account_id: String) -> Result<Cop
     .await;
     state.busy.store(false, Ordering::SeqCst);
     result
+}
+
+/// Asks for Windows Hello unless it passed within the last few minutes (see [`hello::GRACE`]).
+async fn check_hello(app: &AppHandle, state: &AppState) -> Result<(), String> {
+    if state.hello.fresh() || !Config::load_or_create()?.require_hello() {
+        return Ok(());
+    }
+    let popup = app.get_webview_window("popup");
+    let hwnd = popup.as_ref().and_then(|w| w.hwnd().ok()).map_or(0, |h| h.0 as isize);
+    let outcome = tauri::async_runtime::spawn_blocking(move || hello::verify(hwnd, "Unlock Totem to copy 2FA codes"))
+        .await
+        .map_err(|e| e.to_string())??;
+    if let Some(w) = popup {
+        let _ = w.set_focus();
+    }
+    match outcome {
+        hello::Outcome::Verified => {
+            state.hello.passed();
+            Ok(())
+        }
+        hello::Outcome::Cancelled => Err("Windows Hello was cancelled".into()),
+        // Nothing to check with: don't lock the user out. The tray menu explains.
+        hello::Outcome::Unavailable => {
+            tracing::warn!("Windows Hello isn't set up on this PC; copying without it");
+            Ok(())
+        }
+    }
 }
 
 /// Copies without leaving traces: kept out of Win+V history, cloud clipboard and clipboard
@@ -183,6 +224,11 @@ async fn start_pairing(app: AppHandle, state: State<'_, AppState>, relay_url: St
     *state.session.lock().await = None;
     let relay_url = relay_url.trim().to_string();
     totem_protocol::relay::check_relay_url(&relay_url)?;
+    // A home address (ws://) is this PC's own relay, so make sure it's running.
+    let local = relay_url.to_ascii_lowercase().starts_with("ws://");
+    if local {
+        start_relay(&app);
+    }
     let mut config = Config::load_or_create()?;
     let emitter = app.clone();
     let result = pair(&mut config, &relay_url, move |event| {
@@ -205,6 +251,11 @@ async fn start_pairing(app: AppHandle, state: State<'_, AppState>, relay_url: St
     .await;
     match result {
         Ok(phone) => {
+            // Remember who runs the relay: with a wss:// one (e.g. Cloudflare) this PC stops
+            // opening port 8080 from the next start.
+            let mut config = Config::load_or_create()?;
+            config.set_host_relay(local);
+            config.save()?;
             // Fill the search box's cache straight away.
             let _ = refresh_accounts(state).await;
             Ok(app.emit_to("pair", "pair-done", phone.name).map_err(|e| e.to_string())?)
@@ -260,6 +311,33 @@ fn lan_ip() -> String {
         .unwrap_or_else(|_| "127.0.0.1".into())
 }
 
+/// Announces the relay on the home network (mDNS `_totem._tcp`, TXT `id` = this PC's relay id), so
+/// the phone can find it again after the PC gets a new address. Best effort.
+fn announce_relay() {
+    static DAEMON: std::sync::OnceLock<mdns_sd::ServiceDaemon> = std::sync::OnceLock::new();
+    let Ok(config) = Config::load_or_create() else { return };
+    let host = std::env::var("COMPUTERNAME").unwrap_or_else(|_| "totem-pc".into()).to_ascii_lowercase();
+    let result = mdns_sd::ServiceDaemon::new().and_then(|daemon| {
+        let info = mdns_sd::ServiceInfo::new(
+            "_totem._tcp.local.",
+            &format!("Totem {host}"),
+            &format!("{host}.local."),
+            "",
+            RELAY_PORT,
+            &[("id", config.device_id().as_str()), ("path", "/v1/ws")][..],
+        )?
+        .enable_addr_auto();
+        daemon.register(info)?;
+        Ok(daemon)
+    });
+    match result {
+        Ok(daemon) => {
+            let _ = DAEMON.set(daemon);
+        }
+        Err(e) => tracing::warn!("couldn't announce the relay on the network: {e}"),
+    }
+}
+
 /// Firebase service-account key for waking the phone: `TOTEM_FCM_KEY`, or the first
 /// `*firebase-adminsdk*.json` in `~/.secrets`.
 fn fcm_key_path() -> Option<PathBuf> {
@@ -273,6 +351,9 @@ fn fcm_key_path() -> Option<PathBuf> {
 }
 
 fn start_relay(app: &AppHandle) {
+    if app.state::<AppState>().relay_running.swap(true, Ordering::SeqCst) {
+        return;
+    }
     let fcm = match fcm_key_path().map(|p| totem_relay::fcm::Fcm::from_key_file(&p)) {
         Some(Ok(f)) => Some(f),
         Some(Err(e)) => {
@@ -291,6 +372,7 @@ fn start_relay(app: &AppHandle) {
     tauri::async_runtime::spawn(async move {
         match tokio::net::TcpListener::bind(("0.0.0.0", RELAY_PORT)).await {
             Ok(listener) => {
+                announce_relay();
                 if let Err(e) = axum::serve(listener, relay.router()).await {
                     *app.state::<AppState>().relay_error.lock().unwrap() = Some(format!("relay stopped: {e}"));
                 }
@@ -306,6 +388,7 @@ fn main() {
     let app = tauri::Builder::default()
         // A second launch just opens the search box of the running one.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_popup(app)))
+        .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec!["--background"])))
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _shortcut, event| {
@@ -325,11 +408,17 @@ fn main() {
                 start_relay(&handle);
             }
 
+            let require_hello = Config::load_or_create().map(|c| c.require_hello()).unwrap_or(true);
+            let autostart = app.autolaunch().is_enabled().unwrap_or(false);
             let menu = Menu::with_items(
                 app,
                 &[
                     &MenuItem::with_id(app, "code", "Get a code   Ctrl+Shift+A", true, None::<&str>)?,
                     &MenuItem::with_id(app, "pair", "Pair with phone…", true, None::<&str>)?,
+                    &PredefinedMenuItem::separator(app)?,
+                    &CheckMenuItem::with_id(app, "hello", "Ask for Windows Hello (every 10 min)", true, require_hello, None::<&str>)?,
+                    &CheckMenuItem::with_id(app, "autostart", "Start with Windows", true, autostart, None::<&str>)?,
+                    &PredefinedMenuItem::separator(app)?,
                     &MenuItem::with_id(app, "quit", "Quit Totem", true, None::<&str>)?,
                 ],
             )?;
@@ -341,6 +430,18 @@ fn main() {
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "code" => show_popup(app),
                     "pair" => show_pairing_window(app),
+                    "hello" => {
+                        if let Ok(mut config) = Config::load_or_create() {
+                            let on = !config.require_hello();
+                            config.set_require_hello(on);
+                            let _ = config.save();
+                            app.state::<AppState>().hello.forget();
+                        }
+                    }
+                    "autostart" => {
+                        let launch = app.autolaunch();
+                        let _ = if launch.is_enabled().unwrap_or(false) { launch.disable() } else { launch.enable() };
+                    }
                     "quit" => app.exit(0),
                     _ => {}
                 })

@@ -4,11 +4,20 @@ Get 2FA codes on your PC without picking up your phone. The phone keeps the TOTP
 does the maths; the PC asks for a code over an end-to-end encrypted link and only ever gets the
 6-digit code back.
 
-Status: **M3, desktop app working** (tray, Ctrl+Shift+A, built-in relay). End to end, with the
-phone asleep and Totem not running on it, a request gets a correct code in about 1 second:
-relay → FCM wake → phone answers over Noise IK. The Android app is also a standalone
-authenticator (encrypted vault, app lock, QR / manual / Google Authenticator import, encrypted
-backups). Hardening (M4) is next.
+Status: **in daily use** (phone app 0.3.0, desktop 0.2.0). With the phone asleep and Totem not
+running on it, a request gets a correct code in about 1 second: relay → FCM wake → phone answers
+over Noise IK. The Android app is also a standalone authenticator: encrypted vault, app lock,
+QR / manual / Google Authenticator / Aegis / 2FAS import, and encrypted backups.
+
+Security features:
+- Per-account policy: Auto, Ask first (Approve / Deny on the phone) or Phone only.
+- Windows Hello before copying on the PC.
+- An activity log on the phone. A PC asking for codes in a burst gets paused, and you get warnings.
+- Unused PCs are forgotten automatically.
+- An optional extra lock for phone-only accounts.
+
+[docs/protocol.md](docs/protocol.md) describes the protocol, and [docs/security.md](docs/security.md)
+covers what it does and doesn't protect against.
 
 ## Quick start: desktop app (home network)
 
@@ -18,8 +27,15 @@ backups). Hardening (M4) is next.
    whether to allow it on networks: allow **Private** only.
 3. The pairing window opens on first run: click **Show code**, then on the phone go to
    Settings → Pair with a PC and scan it.
-4. Anywhere on the PC: **Ctrl+Shift+A**, type part of the name, **Enter**. The code is on the
-   clipboard (kept out of Win+V history and cloud clipboard, cleared after 20 s).
+4. Anywhere on the PC: **Ctrl+Shift+A**, type part of the name, **Enter**. Windows Hello asks
+   who you are (at most every 10 minutes), then the code is on the clipboard. It's kept out of
+   Win+V history and cloud clipboard and cleared after 20 s.
+
+The tray menu has switches for Windows Hello and **Start with Windows**. If the PC gets a new
+address on the network, the phone finds it again automatically (mDNS).
+
+**Away from home:** run the relay on Cloudflare instead, free and always on. See
+[relay-worker/README.md](relay-worker/README.md).
 
 Keys live in Windows Credential Manager (`Totem` / `pc-keys`); settings in `%APPDATA%\Totem`.
 The relay wakes the phone using the Firebase key it finds in `~/.secrets` (or `TOTEM_FCM_KEY`).
@@ -40,15 +56,18 @@ cargo build --release -p totem-relay -p totem-cli
 ./target/release/totem code github      # copies to the clipboard, clears it after 20 s
 ```
 
-The relay here uses plain `ws://`, which only debug builds of the app allow. That's fine on a home
-network because everything inside is Noise-encrypted anyway. A hosted relay should use `wss://`.
+The relay here uses plain `ws://`, which the app accepts only for local-network addresses. That's
+fine on a home network because everything inside is Noise-encrypted anyway. A relay on the
+internet must use `wss://`.
 
 ## Layout
 
 | Path | What |
 |---|---|
 | `protocol/` | Rust crate: OTP engine, Noise handshakes, relay and app message formats |
-| `relay/` | Relay server (axum WebSockets, Ed25519 login, FCM wake pushes) |
+| `relay/` | Relay server (axum WebSockets, Ed25519 login, FCM wake pushes), plus a Dockerfile (untested) |
+| `relay-worker/` | The same relay as a Cloudflare Worker + Durable Object |
+| `docs/` | Protocol and security review |
 | `client/` | PC-side library shared by the CLI and desktop app (keys, pairing, sessions); `examples/fake_phone.rs` stands in for a phone in tests |
 | `cli/` | `totem` command: pair, list, code |
 | `desktop/` | Tauri desktop app: tray, Ctrl+Shift+A search popup, pairing window, built-in relay |
@@ -57,6 +76,9 @@ network because everything inside is Noise-encrypted anyway. A hosted relay shou
 | `test-vectors/` | JSON vectors (RFC 4226/6238/4648) that both test suites read |
 | `scripts/interop.sh` | Runs all tests, including Kotlin ↔ Rust handshakes |
 | `scripts/push-spike.mjs` | Times FCM push → phone → PC round trips (debug builds only) |
+| `scripts/sign-android.ps1` | Signs release APKs (key rotation, see below) |
+| `scripts/fetch-import-samples.sh` | Downloads real Aegis / 2FAS export samples for the import tests |
+| `scripts/android-icons.mjs` | Generates the Android icons from `desktop/icon.svg`'s shapes |
 
 ## Firebase setup (needed to build the app)
 
@@ -126,8 +148,8 @@ IK with the secret as payload instead of `XXpsk3`.
 Needs Rust (stable), JDK 17+ (`JAVA_HOME`) and the Android SDK (`android/local.properties`).
 
 ```sh
-./scripts/interop.sh                                # all tests
-cd android && ./gradlew :app:installDebug           # install the dev app on a connected phone
+./scripts/interop.sh      # every test: Rust, Kotlin core, vault (Robolectric), Kotlin ↔ Rust handshakes
 ```
 
-Debug and release builds share the ID `tech.miyukivigil.totem`, so installing one replaces the other.
+Debug and release builds share the ID `tech.miyukivigil.totem`, and a phone running the release
+build refuses debug builds (see above). Try debug builds on an emulator or a second device.

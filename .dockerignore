@@ -1,0 +1,8 @@
+target
+**/node_modules
+android
+relay-worker
+desktop/src-tauri/gen
+.git
+*firebase-adminsdk*.json
+*service-account*.json

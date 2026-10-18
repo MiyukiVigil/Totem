@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generated from desktop/icon.svg. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <group android:translateX="-3.558" android:translateY="-3.558" android:scaleX="0.03038674033149171" android:scaleY="0.03038674033149171">
+        <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd" android:pathData="M380,150 H644 A48,48 0 0 1 692,198 V302 A48,48 0 0 1 644,350 H380 A48,48 0 0 1 332,302 V198 A48,48 0 0 1 380,150 ZM406,250 A34,34 0 1 0 474,250 A34,34 0 1 0 406,250 ZM550,250 A34,34 0 1 0 618,250 A34,34 0 1 0 550,250 ZM328,392 H696 A56,56 0 0 1 752,448 V576 A56,56 0 0 1 696,632 H328 A56,56 0 0 1 272,576 V448 A56,56 0 0 1 328,392 ZM473.6,520 A54,54 0 1 1 550.4,520 L560,602 L464,602 ZM380,674 H644 A48,48 0 0 1 692,722 V826 A48,48 0 0 1 644,874 H380 A48,48 0 0 1 332,826 V722 A48,48 0 0 1 380,674 ZM434,752 H590 A22,22 0 0 1 612,774 V774 A22,22 0 0 1 590,796 H434 A22,22 0 0 1 412,774 V774 A22,22 0 0 1 434,752 Z" />
+    </group>
+</vector>

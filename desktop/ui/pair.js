@@ -9,11 +9,12 @@ function show(section) {
 
 async function init() {
   const s = await invoke("status");
-  $("relay").value = s.relay_url ?? s.suggested_relay_url;
+  // Own relay: offer this PC's current address (the saved one may be from an older network).
+  $("relay").value = s.hosting_relay ? s.suggested_relay_url : (s.relay_url ?? s.suggested_relay_url);
   $("current").textContent = s.paired ? `Currently paired with ${s.phone}. Pairing again replaces it.` : "";
   $("relay-note").textContent = s.hosting_relay
-    ? "Totem runs the relay on this PC. The phone needs to be on the same Wi-Fi."
-    : "";
+    ? "Totem runs the relay on this PC, so the phone needs to be on the same Wi-Fi. To get codes from anywhere, paste your Cloudflare relay's wss:// address instead."
+    : "Using a relay elsewhere. To go back to the one on this PC, use " + s.suggested_relay_url;
   if (s.relay_error) $("relay-note").textContent += ` Warning: ${s.relay_error}`;
 }
 

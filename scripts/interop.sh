@@ -6,4 +6,4 @@ cd "$(dirname "$0")/.."
 
 cargo test --workspace
 cargo build -p totem-protocol --example noise_peer
-(cd android && ./gradlew :core:test --console=plain)
+(cd android && ./gradlew :core:test :app:testReleaseUnitTest --console=plain)

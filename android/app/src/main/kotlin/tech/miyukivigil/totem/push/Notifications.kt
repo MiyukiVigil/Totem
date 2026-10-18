@@ -1,6 +1,7 @@
 package tech.miyukivigil.totem.push
 
 import android.app.Notification
+import tech.miyukivigil.totem.R
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -17,6 +18,7 @@ object Notifications {
     private const val CH_SERVICE = "service"
     private const val CH_APPROVAL = "approval"
     private const val CH_SENT = "sent"
+    private const val CH_ALERT = "alert"
     const val SERVICE_ID = 1
     private const val SENT_ID = 2
 
@@ -27,23 +29,45 @@ object Notifications {
                 NotificationChannel(CH_SERVICE, "Answering your PC", NotificationManager.IMPORTANCE_MIN),
                 NotificationChannel(CH_APPROVAL, "Code requests to approve", NotificationManager.IMPORTANCE_HIGH),
                 NotificationChannel(CH_SENT, "Codes sent to your PC", NotificationManager.IMPORTANCE_LOW),
+                NotificationChannel(CH_ALERT, "Security warnings", NotificationManager.IMPORTANCE_HIGH),
             ),
         )
     }
 
     fun service(context: Context): Notification =
         NotificationCompat.Builder(context, CH_SERVICE)
-            .setSmallIcon(android.R.drawable.ic_lock_lock)
+            .setSmallIcon(R.drawable.ic_stat_totem)
             .setContentTitle("Totem is answering your PC")
             .setPriority(NotificationCompat.PRIORITY_MIN)
             .build()
 
     fun codeSent(context: Context, pcName: String, accountName: String) = notify(context, SENT_ID) {
         NotificationCompat.Builder(context, CH_SENT)
-            .setSmallIcon(android.R.drawable.ic_lock_lock)
+            .setSmallIcon(R.drawable.ic_stat_totem)
             .setContentTitle("Code sent to $pcName")
             .setContentText(accountName)
             .setTimeoutAfter(60_000)
+            .build()
+    }
+
+    /** Something a paired PC did looks wrong. Tapping opens Totem. */
+    fun alert(context: Context, title: String, text: String) = notify(context, ("alert:" + title).hashCode()) {
+        val open = context.packageManager.getLaunchIntentForPackage(context.packageName)?.let {
+            PendingIntent.getActivity(context, 0, it, PendingIntent.FLAG_IMMUTABLE)
+        }
+        NotificationCompat.Builder(context, CH_ALERT)
+            .setSmallIcon(android.R.drawable.stat_sys_warning)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(
+                NotificationCompat.Builder(context, CH_ALERT).setSmallIcon(android.R.drawable.stat_sys_warning)
+                    .setContentTitle("Totem security warning").setContentText("Unlock to see details").build(),
+            )
+            .setContentIntent(open)
+            .setAutoCancel(true)
             .build()
     }
 
@@ -58,7 +82,7 @@ object Notifications {
         val approve = NotificationCompat.Action.Builder(0, "Approve", action(true)).setAuthenticationRequired(true).build()
         val deny = NotificationCompat.Action.Builder(0, "Deny", action(false)).build()
         fun base() = NotificationCompat.Builder(context, CH_APPROVAL)
-            .setSmallIcon(android.R.drawable.ic_lock_lock)
+            .setSmallIcon(R.drawable.ic_stat_totem)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setTimeoutAfter(Approvals.TIMEOUT_MS)

@@ -131,9 +131,15 @@ pub struct Session {
 
 impl Session {
     pub async fn open(config: &Config) -> Result<Self, String> {
-        let phone = config.phones().first().cloned().ok_or("no phone paired yet")?;
         let relay_url = config.relay_url().ok_or("no relay configured")?.to_string();
-        let mut relay = RelayClient::connect(&relay_url, &config.signing_key()).await?;
+        Self::open_via(config, &relay_url).await
+    }
+
+    /// Like [`Session::open`], but reaching the relay at `relay_url` (e.g. the desktop app's own
+    /// relay over loopback, which keeps working when the PC's network address changes).
+    pub async fn open_via(config: &Config, relay_url: &str) -> Result<Self, String> {
+        let phone = config.phones().first().cloned().ok_or("no phone paired yet")?;
+        let mut relay = RelayClient::connect(relay_url, &config.signing_key()).await?;
         let sid = random_id();
         let mut hs = noise::session_initiator(&config.noise_private(), &phone.noise_public()).map_err(|e| e.to_string())?;
         let mut buf = vec![0u8; MAX_MESSAGE_LEN];
@@ -175,6 +181,7 @@ impl Session {
                 "user_denied" => "denied on the phone".into(),
                 "policy_never" => "this account is set to phone-only".into(),
                 "approval_timeout" => "nobody approved on the phone in time".into(),
+                "paused" => "the phone paused this PC after too many requests; try again in 15 minutes".into(),
                 "unknown_account" => "that account is no longer on the phone".into(),
                 other => format!("phone refused: {other}"),
             }),

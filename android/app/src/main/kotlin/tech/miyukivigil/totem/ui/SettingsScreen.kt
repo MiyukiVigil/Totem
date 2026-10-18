@@ -22,6 +22,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,19 +37,56 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tech.miyukivigil.totem.TotemApp
+import tech.miyukivigil.totem.core.Account
 import tech.miyukivigil.totem.core.Backup
+import tech.miyukivigil.totem.core.ForeignImport
+import tech.miyukivigil.totem.vault.Vault
 import java.time.LocalDate
 
 @Composable
-fun SettingsScreen(app: TotemApp, onPair: () -> Unit, onBack: () -> Unit) {
+fun SettingsScreen(app: TotemApp, onPair: () -> Unit, onActivity: () -> Unit, onBack: () -> Unit) {
     val vault = app.vault
+    val seal by vault.seal.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var busy by remember { mutableStateOf<String?>(null) }
     var result by remember { mutableStateOf<String?>(null) }
     var askExportPassword by remember { mutableStateOf(false) }
     var exportPassword by remember { mutableStateOf<CharArray?>(null) }
-    var importUri by remember { mutableStateOf<Uri?>(null) }
+    /** A picked file waiting for its password: Totem backup (detected = null), Aegis or 2FAS. */
+    var importFile by remember { mutableStateOf<Pair<ByteArray, ForeignImport.Detected?>?>(null) }
+
+    fun finishImport(restored: List<Account>, skipped: List<String>): String {
+        val fresh = restored.filter { r -> vault.accounts.none { it.sameKeyAs(r) } }
+        vault.add(fresh)
+        val dupes = restored.size - fresh.size
+        return "Imported ${accountsText(fresh.size)}" +
+            (if (dupes > 0) " (${accountsText(dupes)} ${if (dupes == 1) "was" else "were"} already in Totem)" else "") +
+            (if (skipped.isNotEmpty()) ". Not supported, so skipped: ${skipped.joinToString()}" else "") + "."
+    }
+
+    fun decrypt(bytes: ByteArray, detected: ForeignImport.Detected?, password: CharArray?) {
+        busy = "Decrypting…"
+        scope.launch {
+            result = try {
+                withContext(Dispatchers.Default) {
+                    if (detected == null) finishImport(Backup.decrypt(bytes, password!!), emptyList())
+                    else ForeignImport.read(detected, password).let { finishImport(it.accounts, it.skipped) }
+                }
+            } catch (e: Backup.WrongPasswordOrCorrupted) {
+                "Wrong password, or the file is damaged."
+            } catch (e: ForeignImport.WrongPassword) {
+                "Wrong password."
+            } catch (e: Backup.NotABackup) {
+                "That isn't a Totem, Aegis or 2FAS backup file."
+            } catch (e: Exception) {
+                "Import failed: ${e.message}"
+            } finally {
+                password?.fill(' ')
+                busy = null
+            }
+        }
+    }
 
     val createFile = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
         val password = exportPassword ?: return@rememberLauncherForActivityResult
@@ -73,14 +111,29 @@ fun SettingsScreen(app: TotemApp, onPair: () -> Unit, onBack: () -> Unit) {
             }
         }
     }
-    val openFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> importUri = uri }
+    val openFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val bytes = try {
+                withContext(Dispatchers.IO) { context.contentResolver.openInputStream(uri)!!.use { it.readBytes() } }
+            } catch (e: Exception) {
+                result = "Couldn't read that file: ${e.message}"
+                return@launch
+            }
+            val detected = ForeignImport.detect(bytes)
+            if (detected != null && !detected.needsPassword) decrypt(bytes, detected, null) else importFile = bytes to detected
+        }
+    }
 
     Scaffold(topBar = { TotemTopBar("Settings", onBack = onBack) }) { padding ->
         Column(
             Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            PairedPcsSection(app, onPair)
+            PairedPcsSection(app, onPair, onActivity)
+
+            HorizontalDivider()
+            SealSection(app)
 
             HorizontalDivider()
             Text("Backups", style = MaterialTheme.typography.titleMedium)
@@ -89,8 +142,15 @@ fun SettingsScreen(app: TotemApp, onPair: () -> Unit, onBack: () -> Unit) {
                     "Totem never uploads it anywhere.",
                 style = MaterialTheme.typography.bodyMedium,
             )
+            if (seal == Vault.Seal.Locked || seal is Vault.Seal.Broken) {
+                Text(
+                    "Phone-only accounts with the extra lock aren't open right now, so a backup wouldn't include them. Lock and unlock Totem first.",
+                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error,
+                )
+            }
             Button(onClick = { askExportPassword = true }, enabled = busy == null && vault.accounts.isNotEmpty()) { Text("Export encrypted backup") }
             OutlinedButton(onClick = { openFile.launch(arrayOf("*/*")) }, enabled = busy == null) { Text("Import backup") }
+            Text("Totem backups, and exports from Aegis or 2FAS.", style = MaterialTheme.typography.bodySmall)
             busy?.let {
                 Text(it)
                 LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -121,32 +181,14 @@ fun SettingsScreen(app: TotemApp, onPair: () -> Unit, onBack: () -> Unit) {
             },
         )
     }
-    importUri?.let { uri ->
+    importFile?.let { (bytes, detected) ->
         PasswordDialog(
-            title = "Backup password",
+            title = if (detected == null) "Backup password" else "${detected.format.app} export password",
             confirm = false,
-            onDismiss = { importUri = null },
+            onDismiss = { importFile = null },
             onDone = { password ->
-                importUri = null
-                busy = "Decrypting backup…"
-                scope.launch {
-                    result = try {
-                        val bytes = withContext(Dispatchers.IO) { context.contentResolver.openInputStream(uri)!!.use { it.readBytes() } }
-                        val restored = withContext(Dispatchers.Default) { Backup.decrypt(bytes, password) }
-                        val fresh = restored.filter { r -> vault.accounts.none { it.sameKeyAs(r) } }
-                        withContext(Dispatchers.IO) { vault.add(fresh) }
-                        val skipped = restored.size - fresh.size
-                        "Imported ${accountsText(fresh.size)}" +
-                            if (skipped > 0) " (${accountsText(skipped)} ${if (skipped == 1) "was" else "were"} already in Totem)." else "."
-                    } catch (e: Backup.WrongPasswordOrCorrupted) {
-                        "Wrong password, or the file is damaged."
-                    } catch (e: Exception) {
-                        "Import failed: ${e.message}"
-                    } finally {
-                        password.fill(' ')
-                        busy = null
-                    }
-                }
+                importFile = null
+                decrypt(bytes, detected, password)
             },
         )
     }

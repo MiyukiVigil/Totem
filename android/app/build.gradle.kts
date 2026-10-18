@@ -24,8 +24,8 @@ android {
         // 28 = Android 9, the first version with StrongBox-backed Keystore keys.
         minSdk = 28
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.3.0"
     }
 
     signingConfigs {
@@ -57,6 +57,9 @@ android {
     }
 
     buildFeatures { compose = true }
+
+    // Vault tests run on the JVM with Robolectric (android.util.AtomicFile, Log).
+    testOptions { unitTests.isReturnDefaultValues = false }
 }
 
 kotlin {
@@ -88,4 +91,7 @@ dependencies {
 
     implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
     implementation("com.google.firebase:firebase-messaging")
+
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.14.1")
 }

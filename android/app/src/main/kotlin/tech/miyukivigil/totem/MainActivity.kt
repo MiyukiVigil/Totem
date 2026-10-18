@@ -115,6 +115,8 @@ class MainActivity : FragmentActivity() {
                 override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                     promptShowing = false
                     lockState = LockState.UNLOCKED
+                    // The unlock also opens the extra-locked phone-only accounts, if that's on.
+                    lifecycleScope.launch(Dispatchers.IO) { app.vault.unseal() }
                 }
 
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {

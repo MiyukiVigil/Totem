@@ -53,6 +53,7 @@ sealed interface Screen {
     data class Confirm(val found: ScanResult) : Screen
     data class Edit(val accountId: String) : Screen
     data object Settings : Screen
+    data object Activity : Screen
     data object PairScan : Screen
     data class Pairing(val uri: String) : Screen
 }
@@ -139,7 +140,7 @@ private fun MainNavigation(
         )
         Screen.PairScan -> ScanScreen(
             title = "Pair with a PC",
-            hint = "Run `totem pair` on your PC and point the camera at the code it shows.",
+            hint = "On your PC, open Totem → Pair with phone → Show code, and point the camera at it.",
             onScanned = { text ->
                 if (PairingQr.isPairingUri(text)) {
                     screen = Screen.Pairing(text)
@@ -172,7 +173,8 @@ private fun MainNavigation(
                 )
             }
         }
-        Screen.Settings -> SettingsScreen(app, onPair = { screen = Screen.PairScan }, onBack = goHome)
+        Screen.Settings -> SettingsScreen(app, onPair = { screen = Screen.PairScan }, onActivity = { screen = Screen.Activity }, onBack = goHome)
+        Screen.Activity -> ActivityScreen(app, onBack = { screen = Screen.Settings })
     }
 }
 

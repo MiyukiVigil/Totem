@@ -8,7 +8,9 @@ description = "PC side of Totem: keys, pairing and code requests (shared by the 
 [dependencies]
 totem-protocol = { path = "../protocol" }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
-tokio-tungstenite = "0.24"
+tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] }
+# ring as the only crypto provider (aws-lc-rs needs cmake + NASM on Windows).
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
 futures-util = "0.3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

@@ -31,6 +31,8 @@ tasks.test {
     useJUnitPlatform()
     val repoRoot = rootDir.parentFile
     systemProperty("totem.vectors", repoRoot.resolve("test-vectors").path)
+    // Sample Aegis / 2FAS exports, fetched by scripts/fetch-import-samples.sh (GPL, so not in this repo).
+    systemProperty("totem.importSamples", repoRoot.resolve("target/foreign-fixtures").path)
     // Built by `cargo build -p totem-protocol --example noise_peer`; interop tests are skipped without it.
     val exe = if (System.getProperty("os.name").startsWith("Windows")) ".exe" else ""
     systemProperty("totem.rustPeer", repoRoot.resolve("target/debug/examples/noise_peer$exe").path)

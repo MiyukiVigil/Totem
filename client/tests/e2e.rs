@@ -12,7 +12,11 @@ use totem_protocol::app::{PairingDone, PairingHello, PairingQr, PcToPhone, Phone
 use totem_protocol::noise::{self, MAX_MESSAGE_LEN};
 use totem_protocol::relay::device_id;
 
+/// `TOTEM_TEST_RELAY_URL` runs against another relay (see relay/tests/relay.rs).
 async fn start_relay() -> String {
+    if let Ok(url) = std::env::var("TOTEM_TEST_RELAY_URL") {
+        return url;
+    }
     let relay = totem_relay::Relay::new(None, None);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();

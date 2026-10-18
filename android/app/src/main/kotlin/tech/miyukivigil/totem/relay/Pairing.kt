@@ -12,6 +12,7 @@ import tech.miyukivigil.totem.core.RelayProtocol
 import tech.miyukivigil.totem.core.TotemNoise
 import tech.miyukivigil.totem.core.Transport
 import tech.miyukivigil.totem.device.PairedPc
+import tech.miyukivigil.totem.push.Notifications
 import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -107,12 +108,44 @@ object Pairing {
 
 /** Keeps each relay's view of this phone (allow list, push token) up to date. */
 object RelaySync {
+    /** Forgets PCs unused for longer than Settings allows, and says so. Blocking. */
+    fun forgetExpired(app: TotemApp): List<PairedPc> {
+        val forgotten = app.devices.forgetExpired(System.currentTimeMillis() / 1000)
+        for (pc in forgotten) {
+            Notifications.alert(
+                app, "Forgot ${pc.name}",
+                "${pc.name} hadn't asked for a code in over ${app.devices.get().forgetAfterDays} days, so Totem unpaired it. " +
+                    "Pair it again from Settings if you still use it.",
+            )
+        }
+        return forgotten
+    }
+
+    /**
+     * Connects to [relay]. If it's a home-network relay that doesn't answer, looks for the PC on
+     * the network (it may have a new address) and remembers where it went. Blocking.
+     */
+    fun connect(app: TotemApp, relay: String): RelayConnection {
+        val device = app.devices.get()
+        try {
+            return RelayConnection.open(relay, device.identity)
+        } catch (e: IOException) {
+            if (!relay.lowercase().startsWith("ws://")) throw e
+            val ids = device.pcs.filter { it.relay == relay }.map { it.id }.toSet()
+            val found = LanDiscovery.find(app, ids)?.takeIf { it != relay } ?: throw e
+            Log.i("TotemRelay", "relay moved on the home network; trying the new address")
+            val conn = RelayConnection.open(found, device.identity)
+            app.devices.moveRelay(relay, found)
+            return conn
+        }
+    }
+
     /** Blocking, best effort. */
     fun syncAll(app: TotemApp, token: String? = Pairing.fcmToken()) {
         val device = app.devices.get()
         for (relay in device.pcs.map { it.relay }.distinct().ifEmpty { emptyList() }) {
             try {
-                val conn = RelayConnection.open(relay, device.identity)
+                val conn = connect(app, relay)
                 try {
                     sync(conn, app, token)
                 } finally {

@@ -56,6 +56,12 @@ class RelayConnection private constructor(val url: String, private val ws: WebSo
 
         /** Connects and logs in. Blocking. */
         fun open(url: String, identity: RelayIdentity, timeoutMs: Long = 10_000): RelayConnection {
+            // Plain ws:// only inside the home network; anything else must be wss://.
+            try {
+                RelayProtocol.checkRelayUrl(url)
+            } catch (e: IllegalArgumentException) {
+                throw IOException(e.message)
+            }
             val events = LinkedBlockingQueue<Any>()
             val ws = client.newWebSocket(
                 Request.Builder().url(url).build(),

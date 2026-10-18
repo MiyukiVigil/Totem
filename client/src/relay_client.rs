@@ -23,6 +23,8 @@ pub struct Incoming {
 
 impl RelayClient {
     pub async fn connect(url: &str, key: &SigningKey) -> Result<Self, String> {
+        // Plain ws:// only inside the home network; anything else must be wss://.
+        totem_protocol::relay::check_relay_url(url)?;
         let (ws, _) = tokio::time::timeout(Duration::from_secs(10), tokio_tungstenite::connect_async(url))
             .await
             .map_err(|_| format!("timed out connecting to relay {url}"))?

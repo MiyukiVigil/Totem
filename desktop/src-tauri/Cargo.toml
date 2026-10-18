@@ -10,6 +10,7 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 totem-client = { path = "../../client" }
+totem-protocol = { path = "../../protocol" }
 totem-relay = { path = "../../relay" }
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-global-shortcut = "2"

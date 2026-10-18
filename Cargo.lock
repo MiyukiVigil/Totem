@@ -5042,6 +5042,7 @@ dependencies = [
  "tauri-plugin-single-instance",
  "tokio",
  "totem-client",
+ "totem-protocol",
  "totem-relay",
  "tracing",
 ]

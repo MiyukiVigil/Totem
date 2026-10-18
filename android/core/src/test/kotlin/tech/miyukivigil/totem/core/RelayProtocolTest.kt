@@ -16,6 +16,32 @@ class RelayProtocolTest {
         assertEquals("66687aadf862bd776c8fc18b8e9f8e20", RelayProtocol.deviceId(ByteArray(32)))
     }
 
+    /** Same cases as relay::tests::relay_url_rules in Rust: keep them in sync. */
+    @Test
+    fun relayUrlRules() {
+        listOf(
+            "ws://192.168.0.102:8080/v1/ws",
+            "ws://10.1.2.3/v1/ws",
+            "ws://172.16.0.1:8080/v1/ws",
+            "ws://127.0.0.1:8080/v1/ws",
+            "ws://localhost:8080/v1/ws",
+            "ws://desktop-6fqctja.local:8080/v1/ws",
+            "ws://[fd00::1]:8080/v1/ws",
+            "ws://[fe80::1]:8080/v1/ws",
+            "wss://relay.example.com/v1/ws",
+            "WSS://8.8.8.8/v1/ws",
+        ).forEach { RelayProtocol.checkRelayUrl(it) }
+        listOf(
+            "ws://relay.example.com/v1/ws",
+            "ws://8.8.8.8:8080/v1/ws",
+            "ws://172.32.0.1/v1/ws",
+            "ws://[2001:db8::1]/v1/ws",
+            "ws://192.168.0.1.evil.com/v1/ws",
+            "http://192.168.0.102:8080",
+            "ws:///v1/ws",
+        ).forEach { assertFailsWith<IllegalArgumentException>(it) { RelayProtocol.checkRelayUrl(it) } }
+    }
+
     @Test
     fun ed25519MatchesRfc8032TestVector1() {
         val id = RelayIdentity("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60".hex())

@@ -19,6 +19,36 @@ object RelayProtocol {
 
     fun authMessage(nonce: ByteArray): ByteArray = AUTH_CONTEXT + nonce
 
+    /**
+     * Throws unless [url] is `wss://`, or plain `ws://` to a local-network address (private IPv4,
+     * IPv6 unique-local / link-local, loopback, `*.local`). Mirrors `check_relay_url` in
+     * `protocol/src/relay.rs`.
+     */
+    fun checkRelayUrl(url: String) {
+        val lower = url.trim().lowercase()
+        val secure = lower.startsWith("wss://")
+        if (!secure && !lower.startsWith("ws://")) throw IllegalArgumentException("the relay address must start with ws:// or wss://")
+        val authority = lower.substringAfter("://").split('/', '?', '#').first()
+        val host = if (authority.startsWith("[")) authority.removePrefix("[").substringBefore("]") else authority.substringBeforeLast(":", authority)
+        if (host.isEmpty()) throw IllegalArgumentException("the relay address has no host")
+        if (!secure && !isLocalHost(host)) {
+            throw IllegalArgumentException("$host isn't on your local network, so the relay address must use wss:// (encrypted)")
+        }
+    }
+
+    private fun isLocalHost(host: String): Boolean {
+        if (host == "localhost" || host.endsWith(".local")) return true
+        if (host.contains(':')) {
+            // IPv6 literal.
+            val first = host.substringBefore(':').ifEmpty { "0" }.toIntOrNull(16) ?: return false
+            return host == "::1" || (first and 0xfe00) == 0xfc00 || (first and 0xffc0) == 0xfe80
+        }
+        val parts = host.split('.').map { it.toIntOrNull() ?: return false }
+        if (parts.size != 4 || parts.any { it !in 0..255 }) return false
+        val (a, b) = parts
+        return a == 10 || a == 127 || (a == 172 && b in 16..31) || (a == 192 && b == 168) || (a == 169 && b == 254)
+    }
+
     private val b64 = Base64.getEncoder()
     private val unb64 = Base64.getDecoder()
 

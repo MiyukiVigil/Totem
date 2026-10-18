@@ -68,6 +68,28 @@ network because everything inside is Noise-encrypted anyway. A hosted relay shou
 On phones with restricted networking, allow network access (including background data) for Totem
 in Android settings, or pushes and PC requests won't get through.
 
+## Android release builds (what's on the phone)
+
+The phone runs a **release** build: not debuggable, R8-shrunk, screenshots always blocked, no adb
+test switches. It's signed with a key in `~/.secrets` using APK Signature Scheme v3 **key
+rotation** from the PC's original debug key, so it installed as an update without losing data.
+
+```sh
+cd android && ./gradlew :app:assembleRelease
+powershell -File scripts/sign-android.ps1        # → android/app/build/outputs/apk/release/totem-<version>.apk
+adb install -r android/app/build/outputs/apk/release/totem-<version>.apk
+```
+
+Bump `versionCode` for each release. `~/.secrets` must contain `totem-release.jks`,
+`totem-release.properties`, `totem-original-debug.keystore` and `totem-lineage.bin`. **Back the
+whole folder up.** Without it, updates need backup → uninstall → reinstall → import.
+
+Debug builds can no longer be installed over the release (rollback is disabled in the lineage).
+To try a debug build, use an emulator or a second device.
+
+Relay addresses: `ws://` is accepted only for local-network hosts (private IPs, `*.local`);
+anything else must be `wss://`. Enforced in both the app and the PC client.
+
 ## Debug-build test switches
 
 Debug builds check for these files, created with

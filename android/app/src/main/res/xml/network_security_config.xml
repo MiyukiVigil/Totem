@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cleartext is allowed at the OS level because a home relay speaks plain ws:// on the LAN.
+  The app itself decides what's acceptable: RelayConnection refuses ws:// to anything outside
+  the local network (RelayProtocol.checkRelayUrl), and everything inside is Noise-encrypted.
+  Firebase and other libraries use HTTPS regardless.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

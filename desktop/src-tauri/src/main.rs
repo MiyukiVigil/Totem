@@ -182,9 +182,7 @@ struct PairConfirm {
 async fn start_pairing(app: AppHandle, state: State<'_, AppState>, relay_url: String) -> Result<(), String> {
     *state.session.lock().await = None;
     let relay_url = relay_url.trim().to_string();
-    if !(relay_url.starts_with("ws://") || relay_url.starts_with("wss://")) {
-        return Err("the relay address should start with ws:// or wss://".into());
-    }
+    totem_protocol::relay::check_relay_url(&relay_url)?;
     let mut config = Config::load_or_create()?;
     let emitter = app.clone();
     let result = pair(&mut config, &relay_url, move |event| {

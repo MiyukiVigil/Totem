@@ -26,6 +26,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -111,13 +112,20 @@ fun EditAccountScreen(account: Account, onSave: (Account) -> Unit, onDelete: () 
     var issuer by remember { mutableStateOf(account.issuer) }
     var label by remember { mutableStateOf(account.label) }
     var policy by remember { mutableStateOf(account.policy) }
+    var icon by remember { mutableStateOf(account.icon) }
+    var pickIcon by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
+    val preview = account.copy(issuer = issuer.trim(), label = label.trim(), icon = icon)
 
     Scaffold(topBar = { TotemTopBar("Edit account", onBack = onBack) }) { padding ->
         Column(
             Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                AccountIcon(preview, 48.dp)
+                TextButton(onClick = { pickIcon = true }) { Text(if (icon == null) "Icon: automatic · Change" else "Change icon") }
+            }
             OutlinedTextField(issuer, { issuer = it }, label = { Text("Service") }, singleLine = true, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(label, { label = it }, label = { Text("Account") }, singleLine = true, modifier = Modifier.fillMaxWidth())
 
@@ -146,12 +154,15 @@ fun EditAccountScreen(account: Account, onSave: (Account) -> Unit, onDelete: () 
             )
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(
-                    onClick = { onSave(account.copy(issuer = issuer.trim(), label = label.trim(), policy = policy)) },
+                    onClick = { onSave(account.copy(issuer = issuer.trim(), label = label.trim(), policy = policy, icon = icon)) },
                     enabled = issuer.isNotBlank() || label.isNotBlank(),
                 ) { Text("Save") }
                 OutlinedButton(onClick = { confirmDelete = true }) { Text("Delete") }
             }
         }
+    }
+    if (pickIcon) {
+        IconPickerDialog(preview, onPick = { icon = it; pickIcon = false }, onDismiss = { pickIcon = false })
     }
     if (confirmDelete) {
         AlertDialog(

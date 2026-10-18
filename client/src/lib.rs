@@ -2,6 +2,7 @@
 //! keys and settings ([`config`]), pairing ([`pair`]) and code requests ([`Session`]).
 
 pub mod config;
+pub mod hello_key;
 pub mod relay_client;
 
 use base64::engine::general_purpose::STANDARD as B64;
@@ -67,7 +68,7 @@ pub async fn pair(config: &mut Config, relay_url: &str, mut on_event: impl FnMut
         secret: secret.clone(),
         expires: now() + PAIRING_VALID_FOR,
     };
-    let mut relay = RelayClient::connect(relay_url, &config.signing_key()).await?;
+    let mut relay = RelayClient::connect(relay_url, &config.signing_key()?).await?;
     on_event(PairEvent::ShowQr(qr.to_uri()));
 
     // Wait for a phone's handshake carrying the right secret. Anything else is ignored.
@@ -77,7 +78,7 @@ pub async fn pair(config: &mut Config, relay_url: &str, mut on_event: impl FnMut
     loop {
         let left = deadline.saturating_duration_since(tokio::time::Instant::now());
         let msg = relay.recv(left).await.map_err(|e| if e == "timed out" { "the pairing code expired".to_string() } else { e })?;
-        let mut hs = noise::pairing_responder(&config.noise_private()).map_err(|e| e.to_string())?;
+        let mut hs = noise::pairing_responder(&config.noise_private()?).map_err(|e| e.to_string())?;
         let Ok(n) = hs.read_message(&msg.data, &mut payload) else { continue };
         let Ok(hello) = serde_json::from_slice::<PairingHello>(&payload[..n]) else { continue };
         let got = B64.decode(&hello.secret).unwrap_or_default();
@@ -139,9 +140,9 @@ impl Session {
     /// relay over loopback, which keeps working when the PC's network address changes).
     pub async fn open_via(config: &Config, relay_url: &str) -> Result<Self, String> {
         let phone = config.phones().first().cloned().ok_or("no phone paired yet")?;
-        let mut relay = RelayClient::connect(relay_url, &config.signing_key()).await?;
+        let mut relay = RelayClient::connect(relay_url, &config.signing_key()?).await?;
         let sid = random_id();
-        let mut hs = noise::session_initiator(&config.noise_private(), &phone.noise_public()).map_err(|e| e.to_string())?;
+        let mut hs = noise::session_initiator(&config.noise_private()?, &phone.noise_public()).map_err(|e| e.to_string())?;
         let mut buf = vec![0u8; MAX_MESSAGE_LEN];
         let n = hs.write_message(&[], &mut buf).map_err(|e| e.to_string())?;
         relay.send_to(&phone.id, &sid, &buf[..n]).await?;

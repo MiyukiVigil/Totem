@@ -21,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -30,6 +31,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
@@ -51,6 +53,7 @@ import java.util.Date
 fun PairedPcsSection(app: TotemApp, onPair: () -> Unit, onActivity: () -> Unit) {
     var pcs by remember { mutableStateOf<List<PairedPc>?>(null) }
     var forgetAfter by remember { mutableStateOf(PcExpiry.DEFAULT_DAYS) }
+    var dailyCheckIn by remember { mutableStateOf(true) }
     var removing by remember { mutableStateOf<PairedPc?>(null) }
     var renaming by remember { mutableStateOf<PairedPc?>(null) }
     val scope = rememberCoroutineScope()
@@ -62,6 +65,7 @@ fun PairedPcsSection(app: TotemApp, onPair: () -> Unit, onActivity: () -> Unit) 
         }
         pcs = d.pcs
         forgetAfter = d.forgetAfterDays
+        dailyCheckIn = d.dailyCheckIn
     }
     LaunchedEffect(Unit) {
         reload {
@@ -93,6 +97,18 @@ fun PairedPcsSection(app: TotemApp, onPair: () -> Unit, onActivity: () -> Unit) 
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Button(onClick = onPair) { Text("Pair with a PC") }
         OutlinedButton(onClick = onActivity) { Text("Activity") }
+    }
+
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text("Daily check-in", style = MaterialTheme.typography.bodyLarge)
+            Text(
+                "The first code each day from each PC needs Approve here, even for \"Send automatically\" accounts. " +
+                    "Someone with a copy of your PC's keys then can't quietly get codes.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+        Switch(checked = dailyCheckIn, onCheckedChange = { on -> reload { app.devices.setDailyCheckIn(on) } })
     }
 
     Text("Forget a PC that hasn't asked for a code in", style = MaterialTheme.typography.bodyMedium)

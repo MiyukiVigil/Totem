@@ -5173,6 +5173,7 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "base64 0.22.1",
+ "chacha20poly1305",
  "dirs 5.0.1",
  "ed25519-dalek",
  "futures-util",
@@ -5182,15 +5183,19 @@ dependencies = [
  "rustls",
  "serde",
  "serde_json",
+ "sha2",
  "tokio",
  "tokio-tungstenite",
  "totem-protocol",
  "totem-relay",
+ "windows",
+ "windows-core",
+ "windows-future",
 ]
 
 [[package]]
 name = "totem-desktop"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "arboard",
  "axum",

@@ -69,6 +69,9 @@ pub struct AccountInfo {
     pub label: String,
     /// "auto" | "ask" | "never"
     pub policy: String,
+    /// Brand icon slug (Simple Icons) chosen or matched on the phone; absent = no logo.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
 }
 
 /// Contents of the pairing QR code.

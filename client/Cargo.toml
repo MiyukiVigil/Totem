@@ -19,7 +19,15 @@ ed25519-dalek = { version = "2", features = ["rand_core"] }
 rand = "0.8"
 hex = "0.4"
 dirs = "5"
+sha2 = "0.10"
+chacha20poly1305 = "0.10"
 keyring = { version = "3", features = ["windows-native", "apple-native", "linux-native"] }
+
+[target.'cfg(windows)'.dependencies]
+# Windows Hello key credentials (hello_key.rs).
+windows = { version = "0.62", features = ["Security_Credentials", "Security_Cryptography", "Storage_Streams", "Foundation", "Win32_UI_WindowsAndMessaging", "Win32_Foundation"] }
+windows-core = "0.62"
+windows-future = "0.3"
 
 [dev-dependencies]
 totem-relay = { path = "../relay" }

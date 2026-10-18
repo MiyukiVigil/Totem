@@ -96,7 +96,7 @@ Requests (JSON inside the Noise transport):
 ```text
 PC -> phone   {"type":"list_accounts","req":<id>,"ts":<unix>}
 PC -> phone   {"type":"get_code","req":<id>,"ts":<unix>,"account":<account id>}
-phone -> PC   {"type":"accounts","req":..,"items":[{"id","issuer","label","policy":"auto"|"ask"|"never"}]}
+phone -> PC   {"type":"accounts","req":..,"items":[{"id","issuer","label","policy":"auto"|"ask"|"never","icon":<optional brand slug>}]}
 phone -> PC   {"type":"code","req":..,"code":"123456","valid_until":<unix>,"next_code":<only near expiry>}
 phone -> PC   {"type":"denied","req":..,"reason":<reason>}
 ```
@@ -105,6 +105,10 @@ phone -> PC   {"type":"denied","req":..,"reason":<reason>}
   (`clock_skew`), and repeated `req` ids (`replayed`).
 - **Policy, per account.** `AUTO` answers straight away. `ASK` shows an Approve / Deny notification,
   and Approve needs the phone unlocked. `NEVER` answers `policy_never`.
+- **Daily check-in** (setting, on by default). The first code each local day per PC needs
+  Approve on the phone, even for `AUTO` accounts.
+- **Icons.** `icon` is a [Simple Icons](https://simpleicons.org) slug, matched or chosen on the phone.
+  Both apps bundle the same `brand-icons.json` (`scripts/brand-icons.mjs`).
 - **Burst guard.** If a PC got 10 codes in the last 5 minutes, the phone pauses it for 15 minutes
   (`paused`) and warns the user. This is checked against the on-phone activity log, so it survives
   restarts.

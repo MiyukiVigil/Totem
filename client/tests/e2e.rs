@@ -64,8 +64,8 @@ async fn fake_phone(uri: String, accept: bool) {
             PcToPhone::ListAccounts { req, .. } => PhoneToPc::Accounts {
                 req,
                 items: vec![
-                    AccountInfo { id: "gh".into(), issuer: "GitHub".into(), label: "me".into(), policy: "auto".into() },
-                    AccountInfo { id: "bank".into(), issuer: "Bank".into(), label: "".into(), policy: "never".into() },
+                    AccountInfo { id: "gh".into(), issuer: "GitHub".into(), label: "me".into(), policy: "auto".into(), icon: Some("github".into()) },
+                    AccountInfo { id: "bank".into(), issuer: "Bank".into(), label: "".into(), policy: "never".into(), icon: None },
                 ],
             },
             PcToPhone::GetCode { req, account, .. } if account == "gh" => {

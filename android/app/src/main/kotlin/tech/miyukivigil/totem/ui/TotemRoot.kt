@@ -25,7 +25,9 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,6 +42,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tech.miyukivigil.totem.TotemApp
 import tech.miyukivigil.totem.core.Account
+import tech.miyukivigil.totem.core.BrandIcons
 import tech.miyukivigil.totem.core.PairingQr
 import tech.miyukivigil.totem.vault.Vault
 
@@ -73,17 +76,16 @@ fun TotemTheme(content: @Composable () -> Unit) {
 @Composable
 fun TotemRoot(app: TotemApp, lockState: LockState, onUnlockRequested: () -> Unit, pairingUri: String?, onPairingUriUsed: () -> Unit) {
     val vault = app.vault
-    TotemTheme {
+    val brandIcons by produceState<BrandIcons?>(null) { value = withContext(Dispatchers.IO) { app.brandIcons } }
+    TotemTheme { CompositionLocalProvider(LocalBrandIcons provides brandIcons) {
         if (lockState == LockState.LOCKED) {
             LockedScreen(onUnlockRequested)
-            return@TotemTheme
-        }
-        when (val state = vault.state.collectAsState().value) {
+        } else when (val state = vault.state.collectAsState().value) {
             Vault.State.Loading -> Centered { CircularProgressIndicator() }
             is Vault.State.Broken -> BrokenVaultScreen(vault, state.reason)
             is Vault.State.Ready -> MainNavigation(app, state.accounts, lockState == LockState.NO_DEVICE_LOCK, pairingUri, onPairingUriUsed)
         }
-    }
+    } }
 }
 
 @Composable

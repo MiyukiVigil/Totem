@@ -2,6 +2,7 @@ package tech.miyukivigil.totem
 
 import android.app.Application
 import android.content.pm.ApplicationInfo
+import tech.miyukivigil.totem.core.BrandIcons
 import tech.miyukivigil.totem.device.ActivityStore
 import tech.miyukivigil.totem.device.DeviceStore
 import tech.miyukivigil.totem.push.Notifications
@@ -12,6 +13,8 @@ class TotemApp : Application() {
     val vault: Vault by lazy { Vault(filesDir) }
     val devices: DeviceStore by lazy { DeviceStore(filesDir) }
     val activity: ActivityStore by lazy { ActivityStore(filesDir) }
+    /** Bundled brand logos (a few MB of JSON: first use takes a moment, so not on the main thread). */
+    val brandIcons: BrandIcons by lazy { BrandIcons(assets.open("brand-icons.json").use { it.readBytes().decodeToString() }) }
 
     val isDebugBuild: Boolean get() = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
 

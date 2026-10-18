@@ -23,9 +23,12 @@ android {
         applicationId = "tech.miyukivigil.totem"
         // 28 = Android 9, the first version with StrongBox-backed Keystore keys.
         minSdk = 28
+        // Before raising this to 37 (Android 17): declare and request ACCESS_LOCAL_NETWORK, or the
+        // home-network relay (ws://192.168.x.x) and mDNS discovery stop working. Below 37, apps
+        // with INTERNET get it implicitly. https://developer.android.com/privacy-and-security/local-network-permission
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.4.0"
     }
 
     signingConfigs {

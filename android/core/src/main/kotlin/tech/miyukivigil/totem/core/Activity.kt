@@ -85,6 +85,18 @@ object RequestGuard {
     }
 }
 
+/**
+ * Daily check-in: the first code a PC gets each day needs Approve on the phone, even for
+ * "Auto" accounts. Stolen PC keys then can't quietly collect codes on a day you weren't there.
+ */
+object DailyCheckIn {
+    /** True if [pcId] already got a code on the same local day as [now]. */
+    fun done(log: List<ActivityEntry>, pcId: String, now: Long, utcOffsetSecs: Int): Boolean {
+        val today = Math.floorDiv(now + utcOffsetSecs, 86_400L)
+        return log.any { it.pcId == pcId && it.kind == ActivityKind.CODE && Math.floorDiv(it.at + utcOffsetSecs, 86_400L) == today }
+    }
+}
+
 /** When to forget a paired PC that hasn't been used. */
 object PcExpiry {
     /** Choices offered in Settings; 0 = never. */

@@ -31,6 +31,7 @@ struct AppState {
     relay_error: std::sync::Mutex<Option<String>>,
     relay_running: AtomicBool,
     hello: hello::Gate,
+    notice: std::sync::Mutex<Option<String>>,
 }
 
 #[derive(Serialize, Clone)]
@@ -39,12 +40,14 @@ struct AccountView {
     title: String,
     subtitle: String,
     policy: String,
+    /// Brand icon slug from the phone (drawn from ui/brand-icons.json).
+    icon: Option<String>,
 }
 
 impl From<&AccountInfo> for AccountView {
     fn from(a: &AccountInfo) -> Self {
         let (title, subtitle) = if a.issuer.is_empty() { (a.label.clone(), String::new()) } else { (a.issuer.clone(), a.label.clone()) };
-        Self { id: a.id.clone(), title, subtitle, policy: a.policy.clone() }
+        Self { id: a.id.clone(), title, subtitle, policy: a.policy.clone(), icon: a.icon.clone() }
     }
 }
 
@@ -56,6 +59,8 @@ struct Status {
     hosting_relay: bool,
     relay_error: Option<String>,
     suggested_relay_url: String,
+    /// One-off message for the popup (e.g. the result of a tray action).
+    notice: Option<String>,
 }
 
 #[tauri::command]
@@ -68,6 +73,7 @@ fn status(state: State<'_, AppState>) -> Result<Status, String> {
         hosting_relay: config.host_relay(),
         relay_error: state.relay_error.lock().unwrap().clone(),
         suggested_relay_url: format!("ws://{}:{RELAY_PORT}/v1/ws", lan_ip()),
+        notice: state.notice.lock().unwrap().take(),
     })
 }
 
@@ -105,6 +111,7 @@ async fn with_session<T>(
 
 #[tauri::command]
 async fn refresh_accounts(state: State<'_, AppState>) -> Result<Vec<AccountView>, String> {
+    ensure_unlocked(&state).await?;
     let accounts = with_session(&state, |s| Box::pin(s.accounts())).await?;
     let mut config = Config::load_or_create()?;
     config.set_account_cache(accounts.clone());
@@ -119,13 +126,24 @@ struct Copied {
 }
 
 #[tauri::command]
-async fn copy_code(app: AppHandle, state: State<'_, AppState>, account_id: String) -> Result<Copied, String> {
+async fn copy_code(app: AppHandle, state: State<'_, AppState>, account_id: String, type_it: Option<bool>) -> Result<Copied, String> {
     state.busy.store(true, Ordering::SeqCst);
     let result = async {
         check_hello(&app, &state).await?;
         let id = account_id.clone();
         let code = with_session(&state, move |s| Box::pin(async move { s.code(&id).await })).await?;
-        copy_to_clipboard(&code.code)?;
+        if type_it == Some(true) {
+            // Hand focus back to the window the user came from, then type into it.
+            hide_popup(app.clone());
+            tokio::time::sleep(Duration::from_millis(250)).await;
+            if let Err(e) = type_text(&code.code) {
+                // The popup is already gone, so don't lose the code: copy it instead.
+                tracing::warn!("{e}");
+                copy_to_clipboard(&code.code)?;
+            }
+        } else {
+            copy_to_clipboard(&code.code)?;
+        }
         let name = Config::load_or_create()?
             .account_cache()
             .iter()
@@ -139,8 +157,50 @@ async fn copy_code(app: AppHandle, state: State<'_, AppState>, account_id: Strin
     result
 }
 
+/// Types `text` into whatever window has focus, as keyboard input (no clipboard involved).
+#[cfg(windows)]
+fn type_text(text: &str) -> Result<(), String> {
+    use windows::Win32::UI::Input::KeyboardAndMouse::{
+        SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, KEYEVENTF_UNICODE, VIRTUAL_KEY,
+    };
+    let mut inputs = Vec::new();
+    for unit in text.encode_utf16() {
+        for flags in [KEYEVENTF_UNICODE, KEYEVENTF_UNICODE | KEYEVENTF_KEYUP] {
+            inputs.push(INPUT {
+                r#type: INPUT_KEYBOARD,
+                Anonymous: INPUT_0 { ki: KEYBDINPUT { wVk: VIRTUAL_KEY(0), wScan: unit, dwFlags: flags, time: 0, dwExtraInfo: 0 } },
+            });
+        }
+    }
+    let sent = unsafe { SendInput(&inputs, std::mem::size_of::<INPUT>() as i32) };
+    if sent as usize == inputs.len() {
+        Ok(())
+    } else {
+        Err("Windows blocked typing into that window (it may be running as administrator). Use Enter to copy instead.".into())
+    }
+}
+
+#[cfg(not(windows))]
+fn type_text(_text: &str) -> Result<(), String> {
+    Err("typing is only supported on Windows".into())
+}
+
+/// If this PC's keys are protected with Windows Hello and not unlocked yet in this run, asks
+/// now (off the async threads, since the prompt blocks).
+async fn ensure_unlocked(state: &AppState) -> Result<(), String> {
+    let config = Config::load_or_create()?;
+    if config.is_unlocked() {
+        return Ok(());
+    }
+    tauri::async_runtime::spawn_blocking(move || config.unlock()).await.map_err(|e| e.to_string())??;
+    state.hello.passed();
+    Ok(())
+}
+
 /// Asks for Windows Hello unless it passed within the last few minutes (see [`hello::GRACE`]).
 async fn check_hello(app: &AppHandle, state: &AppState) -> Result<(), String> {
+    // Unlocking Windows Hello-protected keys is itself a Windows Hello check.
+    ensure_unlocked(state).await?;
     if state.hello.fresh() || !Config::load_or_create()?.require_hello() {
         return Ok(());
     }
@@ -229,6 +289,7 @@ async fn start_pairing(app: AppHandle, state: State<'_, AppState>, relay_url: St
     if local {
         start_relay(&app);
     }
+    ensure_unlocked(&state).await?;
     let mut config = Config::load_or_create()?;
     let emitter = app.clone();
     let result = pair(&mut config, &relay_url, move |event| {
@@ -410,6 +471,8 @@ fn main() {
 
             let require_hello = Config::load_or_create().map(|c| c.require_hello()).unwrap_or(true);
             let autostart = app.autolaunch().is_enabled().unwrap_or(false);
+            let protected = Config::load_or_create().map(|c| c.is_protected()).unwrap_or(false);
+            let keys_item = CheckMenuItem::with_id(app, "protect", "Lock this PC's keys with Windows Hello", true, protected, None::<&str>)?;
             let menu = Menu::with_items(
                 app,
                 &[
@@ -417,6 +480,7 @@ fn main() {
                     &MenuItem::with_id(app, "pair", "Pair with phone…", true, None::<&str>)?,
                     &PredefinedMenuItem::separator(app)?,
                     &CheckMenuItem::with_id(app, "hello", "Ask for Windows Hello (every 10 min)", true, require_hello, None::<&str>)?,
+                    &keys_item,
                     &CheckMenuItem::with_id(app, "autostart", "Start with Windows", true, autostart, None::<&str>)?,
                     &PredefinedMenuItem::separator(app)?,
                     &MenuItem::with_id(app, "quit", "Quit Totem", true, None::<&str>)?,
@@ -427,8 +491,30 @@ fn main() {
                 .tooltip("Totem: Ctrl+Shift+A for a 2FA code")
                 .menu(&menu)
                 .show_menu_on_left_click(false)
-                .on_menu_event(|app, event| match event.id.as_ref() {
+                .on_menu_event(move |app, event| match event.id.as_ref() {
                     "code" => show_popup(app),
+                    "protect" => {
+                        // Windows Hello prompts block, so do it on a worker thread, then report
+                        // the outcome in the popup and fix the checkmark to match reality.
+                        let app = app.clone();
+                        let item = keys_item.clone();
+                        std::thread::spawn(move || {
+                            let result = Config::load_or_create().and_then(|mut c| {
+                                if c.is_protected() {
+                                    c.unprotect().map(|_| "This PC's keys are no longer locked with Windows Hello.")
+                                } else {
+                                    c.protect_with_hello().map(|_| "This PC's keys are now locked with Windows Hello. Totem asks once each time it starts.")
+                                }
+                            });
+                            let protected = Config::load_or_create().map(|c| c.is_protected()).unwrap_or(false);
+                            let _ = item.set_checked(protected);
+                            *app.state::<AppState>().notice.lock().unwrap() = Some(match result {
+                                Ok(msg) => msg.to_string(),
+                                Err(e) => format!("Couldn't change the key lock: {e}"),
+                            });
+                            show_popup(&app);
+                        });
+                    }
                     "pair" => show_pairing_window(app),
                     "hello" => {
                         if let Ok(mut config) = Config::load_or_create() {

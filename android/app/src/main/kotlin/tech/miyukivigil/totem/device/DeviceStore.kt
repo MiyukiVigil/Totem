@@ -37,10 +37,12 @@ class DeviceStore(dir: File, private val crypto: VaultCrypto = VaultCrypto()) {
         val pcs: List<PairedPc>,
         /** Forget PCs unused for this many days; 0 = never. */
         val forgetAfterDays: Int = PcExpiry.DEFAULT_DAYS,
+        /** First code each day per PC needs Approve, even for "Auto" accounts. */
+        val dailyCheckIn: Boolean = true,
     ) {
         val identity by lazy { RelayIdentity(relaySeed) }
 
-        fun withPcs(pcs: List<PairedPc>) = Data(relaySeed, noisePrivate, noisePublic, pcs, forgetAfterDays)
+        fun withPcs(pcs: List<PairedPc>) = Data(relaySeed, noisePrivate, noisePublic, pcs, forgetAfterDays, dailyCheckIn)
     }
 
     private val file = AtomicFile(File(dir, "device.bin"))
@@ -78,7 +80,10 @@ class DeviceStore(dir: File, private val crypto: VaultCrypto = VaultCrypto()) {
     fun moveRelay(from: String, to: String) = update { d -> d.withPcs(d.pcs.map { if (it.relay == from) it.copy(relay = to) else it }) }
 
     @Synchronized
-    fun setForgetAfterDays(days: Int) = update { d -> Data(d.relaySeed, d.noisePrivate, d.noisePublic, d.pcs, days) }
+    fun setForgetAfterDays(days: Int) = update { d -> Data(d.relaySeed, d.noisePrivate, d.noisePublic, d.pcs, days, d.dailyCheckIn) }
+
+    @Synchronized
+    fun setDailyCheckIn(on: Boolean) = update { d -> Data(d.relaySeed, d.noisePrivate, d.noisePublic, d.pcs, d.forgetAfterDays, on) }
 
     /** Removes PCs unused for longer than the setting allows; returns the ones removed. */
     @Synchronized
@@ -121,6 +126,7 @@ class DeviceStore(dir: File, private val crypto: VaultCrypto = VaultCrypto()) {
             .put("noise_private", b64.encodeToString(d.noisePrivate))
             .put("noise_public", b64.encodeToString(d.noisePublic))
             .put("forget_after_days", d.forgetAfterDays)
+            .put("daily_check_in", d.dailyCheckIn)
             .put("pcs", JSONArray().apply {
                 d.pcs.forEach {
                     put(
@@ -146,6 +152,7 @@ class DeviceStore(dir: File, private val crypto: VaultCrypto = VaultCrypto()) {
                     )
                 },
                 o.optInt("forget_after_days", PcExpiry.DEFAULT_DAYS),
+                o.optBoolean("daily_check_in", true),
             )
         }
     }

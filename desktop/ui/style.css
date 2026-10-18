@@ -90,3 +90,8 @@ input:focus { border-color: var(--accent); }
 .steps { margin: 0; padding-left: 20px; }
 .row { display: flex; gap: 8px; }
 .hidden { display: none !important; }
+
+/* Account logos: brand mark on its color, or a letter. */
+.list .logo { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-weight: 600; font-size: 13px; }
+.list .logo svg { width: 16px; height: 16px; }
+.list .logo { box-shadow: inset 0 0 0 1px rgba(128, 128, 128, 0.35); }

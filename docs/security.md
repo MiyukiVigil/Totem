@@ -1,7 +1,7 @@
 # Totem security review
 
-What Totem protects, against whom, and where the limits are. Reviewed 2026-10-18 for app 0.3.0 /
-desktop 0.2.0. The checklist in part 3 loosely follows OWASP MASVS v2 for the phone app. The wire
+What Totem protects, against whom, and where the limits are. Reviewed 2026-10-18 for app 0.4.0 /
+desktop 0.3.0. The checklist in part 3 loosely follows OWASP MASVS v2 for the phone app. The wire
 format is in [protocol.md](protocol.md).
 
 ## 1. The idea in one paragraph
@@ -19,8 +19,8 @@ who breaks into the PC, the relay or the network can, at worst, get codes while 
 | **Network attacker** | Same, or pose as the relay | Noise. `wss://` required outside the home network | On the home network: blocking traffic, or a fake mDNS announcement steering the phone to another local relay (denial of service only) |
 | **Google (FCM)** | Learn something from pushes | Pushes are empty (`kind: wake`) | Timing of wake-ups |
 | **Someone at your unlocked PC** | Press Ctrl+Shift+A and copy codes | Windows Hello before copying (on by default, valid 10 min). Approve / Deny on the phone for "Ask first" accounts. Phone-only accounts never leave the phone | "Auto" accounts within 10 minutes of a Hello check |
-| **Malware on the PC** (running as you) | Use Totem's keys from Credential Manager to request codes; read the clipboard | "Ask first" needs your approval on the phone. Phone-only is refused. The burst guard pauses a PC after 10 codes in 5 min, and the phone shows a notification for every code sent. The clipboard is kept out of Win+V history and cloud sync and cleared after 20 s | Malware can skip the desktop app (and Windows Hello) and request **Auto** accounts directly, up to the burst limit. **Use "Ask first" for accounts that matter.** It can also read a code while it's on the clipboard |
-| **Copied PC keys** (backup, stolen disk) | Pose as your PC from elsewhere | Same as above. Remove the PC on the phone and it can't do anything. Unused PCs are forgotten after 90 days (configurable) | Until removed: as malware |
+| **Malware on the PC** (running as you) | Use Totem's keys to request codes; read the clipboard | "Ask first" needs your approval on the phone. Phone-only is refused. **Daily check-in** (on by default): the first code each day per PC needs Approve, even for Auto. **Key lock** (optional): the keys in Credential Manager are encrypted with a Windows Hello key, so they can't simply be copied out. The burst guard pauses a PC after 10 codes in 5 min, and every code sent shows a notification. **Shift+Enter** types the code instead of using the clipboard | After you've approved once that day, malware running alongside an unlocked Totem can read the keys from its memory and get Auto codes up to the burst limit. Use "Ask first" for accounts that matter |
+| **Copied PC keys** (backup, stolen disk) | Pose as your PC from elsewhere | With the key lock on, a copy is useless without your Windows Hello. Otherwise the daily check-in shows an Approve request you didn't expect. Remove the PC on the phone and it can't do anything. Unused PCs are forgotten after 90 days (configurable) | Codes you approve by mistake |
 | **Someone with your phone, locked** | Read accounts or approve requests | Totem's app lock (biometric / screen lock). Approve needs the phone unlocked. Lock-screen notifications hide account and PC names | Deny works from the lock screen (by design) |
 | **Someone with your phone, unlocked** | Open Totem | App lock again (asks on launch and after 30 s in the background) | Whatever your screen lock allows |
 | **Malicious app on the phone** | Read Totem's files, screenshot codes, trigger approvals | Android sandbox. Files are AES-GCM with a non-exportable Keystore key (TEE here; StrongBox where available). FLAG_SECURE on every screen. Only the launcher activity is exported; the approval receiver isn't | Nothing without a root exploit |
@@ -53,11 +53,11 @@ who breaks into the PC, the relay or the network can, at worst, get codes while 
 
 ## 4. Known gaps and ideas
 
-1. **Auto accounts and PC malware** (see the table). Possible next step: require the phone's
-   approval the first time each day per PC, or for any account after an alert.
-2. **The desktop app's own keys** sit in Windows Credential Manager, readable by anything running
-   as you. Binding them to Windows Hello (Microsoft Passport / TPM keys) would stop silent use. It's a
-   larger change, because the relay login and Noise both need the private keys.
+1. **Auto accounts and PC malware.** The daily check-in and key lock (both added in 0.4 / 0.3)
+   narrow this. Malware can still use keys from the running app's memory after the day's first
+   approval.
+2. **The key lock is opt-in** (tray menu), because if Windows Hello is ever reset, the keys are gone
+   and the PC needs pairing again. Setup asks twice and refuses unless Windows Hello gives the same key both times.
 3. **The replay list** lives in memory and is lost when the app restarts. That's harmless today:
    a replay needs the old session's keys, and a new process has none.
 4. **mDNS** can be spoofed on the home network. The impact is denial of service only (see the protocol doc).

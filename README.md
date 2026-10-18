@@ -4,13 +4,16 @@ Get 2FA codes on your PC without picking up your phone. The phone keeps the TOTP
 does the maths; the PC asks for a code over an end-to-end encrypted link and only ever gets the
 6-digit code back.
 
-Status: **in daily use** (phone app 0.3.0, desktop 0.2.0). With the phone asleep and Totem not
+Status: **in daily use** (phone app 0.4.0, desktop 0.3.0). With the phone asleep and Totem not
 running on it, a request gets a correct code in about 1 second: relay → FCM wake → phone answers
 over Noise IK. The Android app is also a standalone authenticator: encrypted vault, app lock,
-QR / manual / Google Authenticator / Aegis / 2FAS import, and encrypted backups.
+QR / manual / Google Authenticator / Aegis / 2FAS import, and encrypted backups. Accounts show
+their brand logo (3,300+ bundled offline from Simple Icons) on the phone and the PC.
 
 Security features:
 - Per-account policy: Auto, Ask first (Approve / Deny on the phone) or Phone only.
+- Daily check-in: the first code each day per PC needs Approve on the phone.
+- Optional key lock: the PC's keys are encrypted with Windows Hello.
 - Windows Hello before copying on the PC.
 - An activity log on the phone. A PC asking for codes in a burst gets paused, and you get warnings.
 - Unused PCs are forgotten automatically.
@@ -29,9 +32,11 @@ covers what it does and doesn't protect against.
    Settings → Pair with a PC and scan it.
 4. Anywhere on the PC: **Ctrl+Shift+A**, type part of the name, **Enter**. Windows Hello asks
    who you are (at most every 10 minutes), then the code is on the clipboard. It's kept out of
-   Win+V history and cloud clipboard and cleared after 20 s.
+   Win+V history and cloud clipboard and cleared after 20 s. **Shift+Enter** types the code
+   into the window underneath instead, so it never touches the clipboard.
 
-The tray menu has switches for Windows Hello and **Start with Windows**. If the PC gets a new
+The tray menu has switches for Windows Hello, **Lock this PC's keys with Windows Hello**, and
+**Start with Windows**. If the PC gets a new
 address on the network, the phone finds it again automatically (mDNS).
 
 **Away from home:** run the relay on Cloudflare instead, free and always on. See
@@ -78,6 +83,7 @@ internet must use `wss://`.
 | `scripts/push-spike.mjs` | Times FCM push → phone → PC round trips (debug builds only) |
 | `scripts/sign-android.ps1` | Signs release APKs (key rotation, see below) |
 | `scripts/fetch-import-samples.sh` | Downloads real Aegis / 2FAS export samples for the import tests |
+| `scripts/brand-icons.mjs` | Rebuilds the bundled brand logos (`brand-icons.json`) from Simple Icons |
 | `scripts/android-icons.mjs` | Generates the Android icons from `desktop/icon.svg`'s shapes |
 
 ## Firebase setup (needed to build the app)

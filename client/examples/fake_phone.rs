@@ -45,9 +45,9 @@ async fn main() {
     println!("paired; serving requests");
 
     let accounts = vec![
-        AccountInfo { id: "gh".into(), issuer: "Demo GitHub".into(), label: "octocat".into(), policy: "auto".into() },
-        AccountInfo { id: "bank".into(), issuer: "Demo Bank".into(), label: "".into(), policy: "ask".into() },
-        AccountInfo { id: "vault".into(), issuer: "Demo Vault".into(), label: "".into(), policy: "never".into() },
+        AccountInfo { id: "gh".into(), issuer: "Demo GitHub".into(), label: "octocat".into(), policy: "auto".into(), icon: Some("github".into()) },
+        AccountInfo { id: "bank".into(), issuer: "Demo Bank".into(), label: "".into(), policy: "ask".into(), icon: None },
+        AccountInfo { id: "vault".into(), issuer: "Demo Vault".into(), label: "".into(), policy: "never".into(), icon: None },
     ];
     let mut sessions = HashMap::new();
     loop {

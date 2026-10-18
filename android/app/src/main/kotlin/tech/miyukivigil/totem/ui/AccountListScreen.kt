@@ -150,7 +150,8 @@ private fun AccountRow(account: Account, nowMillis: Long, onEdit: () -> Unit, on
         colors = CardDefaults.cardColors(),
     ) {
         Row(Modifier.padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
+            AccountIcon(account)
+            Column(Modifier.weight(1f).padding(start = 14.dp)) {
                 Text(
                     account.issuer.ifBlank { account.label },
                     style = MaterialTheme.typography.titleMedium,

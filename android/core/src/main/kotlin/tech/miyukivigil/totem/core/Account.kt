@@ -30,6 +30,8 @@ data class Account(
     val counter: Long = 0,
     val policy: RemotePolicy = RemotePolicy.ASK,
     val createdAt: Long = System.currentTimeMillis(),
+    /** Brand icon slug chosen by the user; null = pick from the issuer, "" = no icon. */
+    val icon: String? = null,
 ) {
     init {
         require(secret.isNotEmpty()) { "secret must not be empty" }
@@ -62,7 +64,7 @@ data class Account(
         other is Account && id == other.id && issuer == other.issuer && label == other.label &&
             secret.contentEquals(other.secret) && type == other.type && algorithm == other.algorithm &&
             digits == other.digits && period == other.period && counter == other.counter &&
-            policy == other.policy && createdAt == other.createdAt
+            policy == other.policy && createdAt == other.createdAt && icon == other.icon
 
     override fun hashCode(): Int = id.hashCode()
 
@@ -81,6 +83,7 @@ data class Account(
         .put("counter", counter)
         .put("policy", policy.name)
         .put("created_at", createdAt)
+        .apply { icon?.let { put("icon", it) } }
 
     companion object {
         fun fromJson(o: JSONObject) = Account(
@@ -95,6 +98,7 @@ data class Account(
             counter = o.optLong("counter", 0),
             policy = RemotePolicy.valueOf(o.optString("policy", "ASK")),
             createdAt = o.optLong("created_at", 0),
+            icon = if (o.has("icon")) o.getString("icon") else null,
         )
     }
 }

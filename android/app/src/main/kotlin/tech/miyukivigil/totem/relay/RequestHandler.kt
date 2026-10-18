@@ -5,6 +5,7 @@ import tech.miyukivigil.totem.TotemApp
 import tech.miyukivigil.totem.core.Account
 import tech.miyukivigil.totem.core.ActivityEntry
 import tech.miyukivigil.totem.core.ActivityKind
+import tech.miyukivigil.totem.core.DailyCheckIn
 import tech.miyukivigil.totem.core.AppMessages
 import tech.miyukivigil.totem.core.AppMessages.Request
 import tech.miyukivigil.totem.core.Otp
@@ -17,6 +18,7 @@ import tech.miyukivigil.totem.core.Transport
 import tech.miyukivigil.totem.device.PairedPc
 import tech.miyukivigil.totem.push.Approvals
 import tech.miyukivigil.totem.push.Notifications
+import java.util.TimeZone
 import kotlin.math.abs
 
 /**
@@ -86,7 +88,7 @@ class RequestHandler(private val app: TotemApp, private val conn: RelayConnectio
                 // Every popup refresh lists; one entry per PC per 10 minutes is enough history.
                 val last = app.activity.entries().lastOrNull { it.pcId == pc.id }
                 if (last == null || last.kind != ActivityKind.LIST || now - last.at > 600) log(pc, ActivityKind.LIST)
-                AppMessages.accounts(request.req, app.vault.accounts)
+                AppMessages.accounts(request.req, app.vault.accounts) { app.brandIcons.forAccount(it)?.slug }
             }
             is Request.GetCode -> {
                 val account = app.vault.accounts.firstOrNull { it.id == request.account }
@@ -106,8 +108,11 @@ class RequestHandler(private val app: TotemApp, private val conn: RelayConnectio
                         return deny(request.req, pc, account, "paused")
                     }
                 }
-                if (account.policy == RemotePolicy.ASK) {
-                    when (Approvals.ask(app, request.req, pc.name, account.displayName)) {
+                val checkIn = account.policy == RemotePolicy.AUTO && app.devices.get().dailyCheckIn &&
+                    !DailyCheckIn.done(app.activity.entries(), pc.id, now, TimeZone.getDefault().getOffset(now * 1000) / 1000)
+                if (account.policy == RemotePolicy.ASK || checkIn) {
+                    val what = if (checkIn) "${account.displayName} · first code today" else account.displayName
+                    when (Approvals.ask(app, request.req, pc.name, what)) {
                         true -> Unit
                         false -> return deny(request.req, pc, account, "user_denied")
                         null -> return deny(request.req, pc, account, "approval_timeout")

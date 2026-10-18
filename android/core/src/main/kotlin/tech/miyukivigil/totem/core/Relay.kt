@@ -159,12 +159,16 @@ object AppMessages {
         }
     }
 
-    fun accounts(req: String, accounts: List<Account>): ByteArray = JSONObject()
+    /** [iconFor] gives each account's brand icon slug, so the PC can show the same logo. */
+    fun accounts(req: String, accounts: List<Account>, iconFor: (Account) -> String? = { null }): ByteArray = JSONObject()
         .put("type", "accounts")
         .put("req", req)
         .put("items", JSONArray().apply {
             accounts.forEach {
-                put(JSONObject().put("id", it.id).put("issuer", it.issuer).put("label", it.label).put("policy", it.policy.name.lowercase()))
+                put(
+                    JSONObject().put("id", it.id).put("issuer", it.issuer).put("label", it.label).put("policy", it.policy.name.lowercase())
+                        .apply { iconFor(it)?.let { slug -> put("icon", slug) } },
+                )
             }
         })
         .toString().toByteArray()

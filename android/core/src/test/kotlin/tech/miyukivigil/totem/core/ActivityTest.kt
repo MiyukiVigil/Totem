@@ -65,6 +65,18 @@ class ActivityTest {
     }
 
     @Test
+    fun dailyCheckIn() {
+        val myt = 8 * 3600 // UTC+8
+        // 2026-10-18 09:00 local = 01:00 UTC
+        val morning = 1_792_285_200L
+        val log = listOf(code(morning))
+        assertTrue(DailyCheckIn.done(log, "pc1", morning + 12 * 3600, myt), "same day, 21:00")
+        assertFalse(DailyCheckIn.done(log, "pc1", morning + 16 * 3600, myt), "next day, 01:00")
+        assertFalse(DailyCheckIn.done(log, "pc2", morning + 60, myt), "other PC")
+        assertFalse(DailyCheckIn.done(listOf(ActivityEntry(morning, "pc1", "Desk", ActivityKind.DENIED, "x")), "pc1", morning + 60, myt), "denied doesn't count")
+    }
+
+    @Test
     fun expiry() {
         val day = 86_400L
         assertFalse(PcExpiry.isExpired(0, 0, 0, 1000 * day), "never")

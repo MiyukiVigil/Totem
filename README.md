@@ -4,7 +4,7 @@ Get 2FA codes on your PC without picking up your phone. The phone keeps the TOTP
 does the maths; the PC asks for a code over an end-to-end encrypted link and only ever gets the
 6-digit code back.
 
-Status: **in daily use** (phone app 0.4.0, desktop 0.3.0). With the phone asleep and Totem not
+Status: **in daily use** (phone app 0.4.0, desktop 0.4.0, browser extension 0.1.0). With the phone asleep and Totem not
 running on it, a request gets a correct code in about 1 second: relay → FCM wake → phone answers
 over Noise IK. The Android app is also a standalone authenticator: encrypted vault, app lock,
 QR / manual / Google Authenticator / Aegis / 2FAS import, and encrypted backups. Accounts show
@@ -25,7 +25,7 @@ covers what it does and doesn't protect against.
 ## Quick start: desktop app (home network)
 
 1. Build the installer: `cd desktop && npm install && npx tauri build`, then run
-   `target/release/bundle/nsis/Totem_0.1.0_x64-setup.exe`.
+   `target/release/bundle/nsis/Totem_<version>_x64-setup.exe`.
 2. Open Totem. It sits in the tray and runs the relay itself on port 8080. Windows asks once
    whether to allow it on networks: allow **Private** only.
 3. The pairing window opens on first run: click **Show code**, then on the phone go to
@@ -39,8 +39,15 @@ The tray menu has switches for Windows Hello, **Lock this PC's keys with Windows
 **Start with Windows**. If the PC gets a new
 address on the network, the phone finds it again automatically (mDNS).
 
+**In the browser:** the Totem extension for Chrome, Edge and Brave fills codes straight into
+2FA boxes. Click the Totem button in the box, or the toolbar button (**Alt+Shift+T**). See
+[browser-extension/README.md](browser-extension/README.md).
+
 **Away from home:** run the relay on Cloudflare instead, free and always on. See
-[relay-worker/README.md](relay-worker/README.md).
+[relay-worker/README.md](relay-worker/README.md). To run it on a server of your own instead, build
+`totem-relay` (below), run it with `--listen 0.0.0.0:8080 --store <file> --fcm-key <key.json>`,
+and put it behind a TLS proxy (Caddy, nginx, Cloudflare Tunnel): phones and PCs only accept
+`wss://` for addresses outside the home network.
 
 Keys live in Windows Credential Manager (`Totem` / `pc-keys`); settings in `%APPDATA%\Totem`.
 The relay wakes the phone using the Firebase key it finds in `~/.secrets` (or `TOTEM_FCM_KEY`).
@@ -70,12 +77,13 @@ internet must use `wss://`.
 | Path | What |
 |---|---|
 | `protocol/` | Rust crate: OTP engine, Noise handshakes, relay and app message formats |
-| `relay/` | Relay server (axum WebSockets, Ed25519 login, FCM wake pushes), plus a Dockerfile (untested) |
+| `relay/` | Relay server (axum WebSockets, Ed25519 login, FCM wake pushes) |
 | `relay-worker/` | The same relay as a Cloudflare Worker + Durable Object |
 | `docs/` | Protocol and security review |
 | `client/` | PC-side library shared by the CLI and desktop app (keys, pairing, sessions); `examples/fake_phone.rs` stands in for a phone in tests |
 | `cli/` | `totem` command: pair, list, code |
-| `desktop/` | Tauri desktop app: tray, Ctrl+Shift+A search popup, pairing window, built-in relay |
+| `desktop/` | Tauri desktop app: tray, Ctrl+Shift+A search popup, pairing window, built-in relay, browser extension bridge |
+| `browser-extension/` | Chrome / Edge / Brave extension that fills codes through the desktop app (`node --test browser-extension/`) |
 | `android/core/` | Kotlin/JVM module: the same OTP engine and Noise helpers, used by the phone app |
 | `android/app/` | Android app: vault, app lock, account list, scanning, backups |
 | `test-vectors/` | JSON vectors (RFC 4226/6238/4648) that both test suites read |

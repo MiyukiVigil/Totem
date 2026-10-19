@@ -1,7 +1,7 @@
 {
   "name": "totem-desktop",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Tauri tooling for the Totem desktop app (the app itself is in src-tauri and ui)",
   "scripts": {
     "tauri": "tauri",

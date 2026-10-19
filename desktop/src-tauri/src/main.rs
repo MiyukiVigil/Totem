@@ -3,6 +3,7 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod browser;
 mod hello;
 
 use serde::Serialize;
@@ -83,7 +84,7 @@ fn cached_accounts() -> Result<Vec<AccountView>, String> {
 }
 
 /// Runs `f` with a session to the phone, reusing a very recent one.
-async fn with_session<T>(
+pub(crate) async fn with_session<T>(
     state: &AppState,
     f: impl for<'a> FnOnce(&'a mut Session) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<T, String>> + Send + 'a>>,
 ) -> Result<T, String> {
@@ -109,14 +110,19 @@ async fn with_session<T>(
     result
 }
 
-#[tauri::command]
-async fn refresh_accounts(state: State<'_, AppState>) -> Result<Vec<AccountView>, String> {
-    ensure_unlocked(&state).await?;
-    let accounts = with_session(&state, |s| Box::pin(s.accounts())).await?;
+/// Asks the phone for its account list and caches it for the search box.
+pub(crate) async fn fetch_accounts(state: &AppState) -> Result<Vec<AccountInfo>, String> {
+    ensure_unlocked(state).await?;
+    let accounts = with_session(state, |s| Box::pin(s.accounts())).await?;
     let mut config = Config::load_or_create()?;
     config.set_account_cache(accounts.clone());
     config.save()?;
-    Ok(accounts.iter().map(AccountView::from).collect())
+    Ok(accounts)
+}
+
+#[tauri::command]
+async fn refresh_accounts(state: State<'_, AppState>) -> Result<Vec<AccountView>, String> {
+    Ok(fetch_accounts(&state).await?.iter().map(AccountView::from).collect())
 }
 
 #[derive(Serialize)]
@@ -129,7 +135,13 @@ struct Copied {
 async fn copy_code(app: AppHandle, state: State<'_, AppState>, account_id: String, type_it: Option<bool>) -> Result<Copied, String> {
     state.busy.store(true, Ordering::SeqCst);
     let result = async {
-        check_hello(&app, &state).await?;
+        let popup = app.get_webview_window("popup");
+        let hwnd = popup.as_ref().and_then(|w| w.hwnd().ok()).map_or(0, |h| h.0 as isize);
+        let checked = check_hello(&state, hwnd, "Unlock Totem to copy 2FA codes").await;
+        if let Some(w) = popup {
+            let _ = w.set_focus();
+        }
+        checked?;
         let id = account_id.clone();
         let code = with_session(&state, move |s| Box::pin(async move { s.code(&id).await })).await?;
         if type_it == Some(true) {
@@ -197,21 +209,15 @@ async fn ensure_unlocked(state: &AppState) -> Result<(), String> {
     Ok(())
 }
 
-/// Asks for Windows Hello unless it passed within the last few minutes (see [`hello::GRACE`]).
-async fn check_hello(app: &AppHandle, state: &AppState) -> Result<(), String> {
+/// Asks for Windows Hello (on top of window `hwnd`) unless it passed within the last few minutes
+/// (see [`hello::GRACE`]).
+pub(crate) async fn check_hello(state: &AppState, hwnd: isize, message: &'static str) -> Result<(), String> {
     // Unlocking Windows Hello-protected keys is itself a Windows Hello check.
     ensure_unlocked(state).await?;
     if state.hello.fresh() || !Config::load_or_create()?.require_hello() {
         return Ok(());
     }
-    let popup = app.get_webview_window("popup");
-    let hwnd = popup.as_ref().and_then(|w| w.hwnd().ok()).map_or(0, |h| h.0 as isize);
-    let outcome = tauri::async_runtime::spawn_blocking(move || hello::verify(hwnd, "Unlock Totem to copy 2FA codes"))
-        .await
-        .map_err(|e| e.to_string())??;
-    if let Some(w) = popup {
-        let _ = w.set_focus();
-    }
+    let outcome = tauri::async_runtime::spawn_blocking(move || hello::verify(hwnd, message)).await.map_err(|e| e.to_string())??;
     match outcome {
         hello::Outcome::Verified => {
             state.hello.passed();
@@ -446,6 +452,10 @@ fn start_relay(app: &AppHandle) {
 }
 
 fn main() {
+    // Started by Chrome/Edge for the browser extension: relay its messages, nothing else.
+    if browser::launched_by_browser() {
+        return browser::run_host();
+    }
     let app = tauri::Builder::default()
         // A second launch just opens the search box of the running one.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_popup(app)))
@@ -468,6 +478,10 @@ fn main() {
             if Config::load_or_create().map(|c| c.host_relay()).unwrap_or(true) {
                 start_relay(&handle);
             }
+            if let Err(e) = browser::register() {
+                tracing::warn!("browser extension: {e}");
+            }
+            browser::serve(handle.clone());
 
             let require_hello = Config::load_or_create().map(|c| c.require_hello()).unwrap_or(true);
             let autostart = app.autolaunch().is_enabled().unwrap_or(false);

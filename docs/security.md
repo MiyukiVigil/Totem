@@ -1,7 +1,7 @@
 # Totem security review
 
 What Totem protects, against whom, and where the limits are. Reviewed 2026-10-18 for app 0.4.0 /
-desktop 0.3.0. The checklist in part 3 loosely follows OWASP MASVS v2 for the phone app. The wire
+desktop 0.3.0, plus the browser extension (desktop 0.4.0) on 2026-10-19. The checklist in part 3 loosely follows OWASP MASVS v2 for the phone app. The wire
 format is in [protocol.md](protocol.md).
 
 ## 1. The idea in one paragraph
@@ -20,6 +20,8 @@ who breaks into the PC, the relay or the network can, at worst, get codes while 
 | **Google (FCM)** | Learn something from pushes | Pushes are empty (`kind: wake`) | Timing of wake-ups |
 | **Someone at your unlocked PC** | Press Ctrl+Shift+A and copy codes | Windows Hello before copying (on by default, valid 10 min). Approve / Deny on the phone for "Ask first" accounts. Phone-only accounts never leave the phone | "Auto" accounts within 10 minutes of a Hello check |
 | **Malware on the PC** (running as you) | Use Totem's keys to request codes; read the clipboard | "Ask first" needs your approval on the phone. Phone-only is refused. **Daily check-in** (on by default): the first code each day per PC needs Approve, even for Auto. **Key lock** (optional): the keys in Credential Manager are encrypted with a Windows Hello key, so they can't simply be copied out. The burst guard pauses a PC after 10 codes in 5 min, and every code sent shows a notification. **Shift+Enter** types the code instead of using the clipboard | After you've approved once that day, malware running alongside an unlocked Totem can read the keys from its memory and get Auto codes up to the burst limit. Use "Ask first" for accounts that matter |
+| **A phishing or malicious website** (with the browser extension) | Get a code for another site filled in, or click the Totem button for you | Accounts are matched to the page by its registered domain as the browser reports it (`github.com.evil.io` and `github-login.com` don't match GitHub). The in-page button only fills a code when exactly one account matches; anything else goes to the toolbar popup, which warns and needs a second press for an account that doesn't match the site. The button lives in a closed shadow root and ignores synthetic clicks (`isTrusted`). Windows Hello and phone policies apply as with Ctrl+Shift+A | A site whose name collides with one of your issuers. You pressing "fill anyway" on a look-alike |
+| **Other browser extensions** | Ask Totem for codes | The native messaging host only accepts Totem's extension ID (`allowed_origins` in the host manifest, and checked again by the host) | An extension with permission to read pages sees a code once it's typed in, as with any code |
 | **Copied PC keys** (backup, stolen disk) | Pose as your PC from elsewhere | With the key lock on, a copy is useless without your Windows Hello. Otherwise the daily check-in shows an Approve request you didn't expect. Remove the PC on the phone and it can't do anything. Unused PCs are forgotten after 90 days (configurable) | Codes you approve by mistake |
 | **Someone with your phone, locked** | Read accounts or approve requests | Totem's app lock (biometric / screen lock). Approve needs the phone unlocked. Lock-screen notifications hide account and PC names | Deny works from the lock screen (by design) |
 | **Someone with your phone, unlocked** | Open Totem | App lock again (asks on launch and after 30 s in the background) | Whatever your screen lock allows |
@@ -61,5 +63,10 @@ who breaks into the PC, the relay or the network can, at worst, get codes while 
 3. **The replay list** lives in memory and is lost when the app restarts. That's harmless today:
    a replay needs the old session's keys, and a new process has none.
 4. **mDNS** can be spoofed on the home network. The impact is denial of service only (see the protocol doc).
-5. **Not audited by a third party.** This is a personal project. The crypto comes from mature
+5. **The browser bridge's named pipe** (`\\.\pipe\totem-browser-<user>`) uses the default pipe
+   permissions, so other Windows accounts can't write to it, but programs running as you can, just as
+   they can use Totem's keys (see "Malware on the PC"). The app creates it with
+   `first_pipe_instance`, so it notices if something else claimed the name first, but the host
+   doesn't check who is serving the pipe.
+6. **Not audited by a third party.** This is a personal project. The crypto comes from mature
    libraries (snow, noise-java, BouncyCastle, Android Keystore), but the glue is ours.

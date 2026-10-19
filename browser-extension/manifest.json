@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Totem",
+  "version": "0.1.0",
+  "description": "Fill 2FA codes from your phone, through Totem for Windows. The secrets never leave the phone.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0q7y6jtZNACdtvwj9KCsA6HsJOoDq99V1Z5EKRB1TSLft2fXFNNGXlQTlP4yqh0gO6Q8xb603FMY7qir6C64HVi/EfsMuR6GgKNEL7lVbquTgEP/v7Pv5WdksgKjt9Yg9elaXpu3vMzgISVO94Mn1KQHpbAOXrqP7THcWwfoCLswO2IXPOjLgupe6Pi54V0SQvrVT7MW8qnI+xcuEta9AgP76NyJ+lwe97XQ/W2I4qoJKm/VJIvr2Wy8A98GLGim7XrV5z7m+Zr0QWaCIRnqV1+D3JTD3jl/HiEACS2JVaCdiQRYB9BMwzBkACRWCx2INSmrlWxnPI5qzcjdBRsLpQIDAQAB",
+  "minimum_chrome_version": "127",
+  "permissions": ["nativeMessaging", "scripting", "activeTab"],
+  "host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Totem: fill a 2FA code",
+    "default_icon": { "32": "icons/32.png", "64": "icons/64.png" }
+  },
+  "icons": { "32": "icons/32.png", "64": "icons/64.png", "128": "icons/128.png" },
+  "content_scripts": [
+    { "matches": ["<all_urls>"], "js": ["content.js"], "all_frames": true, "run_at": "document_idle" }
+  ],
+  "commands": {
+    "_execute_action": { "suggested_key": { "default": "Alt+Shift+T" }, "description": "Open Totem" }
+  }
+}

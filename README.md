@@ -1,5 +1,12 @@
 # Totem
 
+> [!NOTE]
+> **This is a personal project.** I built it for my own phone and PC and share it as is. I don't
+> offer support, take feature requests, publish builds or promise updates. If you want to use it,
+> **fork it** and run your own copy: create your own Firebase project, signing keys and relay,
+> and maintain it yourself. Read [docs/security.md](docs/security.md) first; it hasn't been
+> audited by anyone else.
+
 Get 2FA codes on your PC without picking up your phone. The phone keeps the TOTP secrets and
 does the maths; the PC asks for a code over an end-to-end encrypted link and only ever gets the
 6-digit code back.

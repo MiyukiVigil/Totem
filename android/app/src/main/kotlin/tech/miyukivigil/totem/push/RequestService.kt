@@ -9,8 +9,9 @@ import android.os.IBinder
 import android.util.Log
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
+import com.google.firebase.messaging.FirebaseMessaging
 import tech.miyukivigil.totem.TotemApp
-import tech.miyukivigil.totem.relay.Pairing
+import tech.miyukivigil.totem.core.RelayProtocol
 import tech.miyukivigil.totem.relay.RelayConnection
 import tech.miyukivigil.totem.relay.RelaySync
 import tech.miyukivigil.totem.relay.RequestHandler
@@ -47,7 +48,9 @@ class RequestService : Service() {
         app.vault.load()
         val forgotten = RelaySync.forgetExpired(app)
         val device = app.devices.get()
-        val token = Pairing.fcmToken()
+        // Don't wait for the push token before connecting: on a cold start it can take seconds,
+        // and the PC's message only waits at the relay for so long.
+        val token = FirebaseMessaging.getInstance().token
         // Also visit relays that only a forgotten PC used, to clear its permission there.
         for (relay in (device.pcs + forgotten).map { it.relay }.distinct()) {
             val conn = try {
@@ -57,7 +60,8 @@ class RequestService : Service() {
                 continue
             }
             try {
-                RelaySync.sync(conn, app, token)
+                RelaySync.sync(conn, app, null)
+                token.addOnSuccessListener { runCatching { conn.send(RelayProtocol.registerPush(it)) } }
                 RequestHandler(app, conn).run()
             } finally {
                 conn.close()

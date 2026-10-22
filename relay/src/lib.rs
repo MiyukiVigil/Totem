@@ -25,8 +25,9 @@ use std::time::{Duration, Instant};
 use tokio::sync::{mpsc, Mutex};
 use totem_protocol::relay::{auth_message, device_id, ClientMsg, ServerMsg, MAX_DATA_LEN};
 
-/// How long a message waits for an offline device.
-pub const HOLD_FOR: Duration = Duration::from_secs(15);
+/// How long a message waits for an offline device. Covers a cold phone start, and outlasts the
+/// PC's 25 s wait (client `PHONE_TIMEOUT`).
+pub const HOLD_FOR: Duration = Duration::from_secs(30);
 const AUTH_TIMEOUT: Duration = Duration::from_secs(10);
 const MIN_WAKE_INTERVAL: Duration = Duration::from_secs(2);
 /// Per-connection limit: this many messages per [`RATE_WINDOW`].

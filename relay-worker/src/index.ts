@@ -17,7 +17,8 @@ export interface Env {
 const AUTH_CONTEXT = new TextEncoder().encode("totem-relay-auth-v1");
 const MAX_DATA_LEN = 16 * 1024;
 const MAX_FRAME_LEN = MAX_DATA_LEN + 1024;
-const HOLD_FOR_MS = 15_000;
+// Covers a cold phone start, and outlasts the PC's 25 s wait (client PHONE_TIMEOUT).
+const HOLD_FOR_MS = 30_000;
 const AUTH_TIMEOUT_MS = 10_000;
 const MIN_WAKE_INTERVAL_MS = 2_000;
 const RATE_LIMIT = 60;
@@ -246,7 +247,7 @@ export class Relay extends DurableObject<Env> {
         method: "POST",
         headers: { authorization: `Bearer ${bearer}`, "content-type": "application/json" },
         body: JSON.stringify({
-          message: { token, data: { kind: "wake" }, android: { priority: "HIGH", ttl: "15s" } },
+          message: { token, data: { kind: "wake" }, android: { priority: "HIGH", ttl: "30s" } },
         }),
       });
       if (!res.ok) console.warn(`wake push failed: ${res.status} ${await res.text()}`);

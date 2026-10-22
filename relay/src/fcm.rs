@@ -79,7 +79,7 @@ impl Fcm {
             "message": {
                 "token": fcm_token,
                 "data": { "kind": "wake" },
-                "android": { "priority": "HIGH", "ttl": "15s" }
+                "android": { "priority": "HIGH", "ttl": "30s" }
             }
         });
         let url = format!("https://fcm.googleapis.com/v1/projects/{}/messages:send", self.account.project_id);

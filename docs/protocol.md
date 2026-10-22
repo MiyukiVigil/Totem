@@ -46,7 +46,7 @@ relay  -> device  {"t":"error","code":<code>,"msg":<text>}
   disconnected. A newer login for the same id replaces the older connection.
 - **Allow list.** Once a phone sends `allow`, the relay only forwards messages to it from those
   peers (`not_allowed` otherwise). PCs never send one; they answer only valid Noise handshakes anyway.
-- **Offline phones.** A message for a device that isn't connected is held for 15 s (at most 32 per
+- **Offline phones.** A message for a device that isn't connected is held for 30 s (at most 32 per
   device). If the device registered an FCM token, the relay sends a high-priority data push
   `{"kind":"wake"}`, at most one every 2 s per device. The phone connects and gets the held messages
   right after `ready`.
